@@ -1,2 +1,2 @@
-# xai_energy_efficient_smart_home
-Explainable Recommendation Systems in Energy‐Efficient Smart Home
+# Topic S2: Explainable Recommendation Systems in Energy‐Efficient Smart Home
+## Seminar Applied Predictive Analytics at HU
