@@ -1,1 +1,8 @@
+# my venv
+pyvenv.cfg
+/venv/
+# data 
 /02_data/
+# directories that occured due to Modularization
+/01_notebooks/__pycache__/
+/scripts/__pycache__
