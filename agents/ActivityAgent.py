@@ -87,7 +87,31 @@ class Activity_Agent:
         y_test = self.get_ytest(df, date, time_delta=test_delta, target=target)
         return X_train, y_train, X_test, y_test
 
-
+    def fit_skModels(self,model, X, y):
+        # models we want to try
+        names = ["knn", "linear svm", 
+        "rbv svm", "gaussian process","descision tree", "random forest", 
+        "nn", "ada boost","nb", "qda", 'logit']
+        classifiers = [ KNeighborsClassifier(3),
+                        SVC(kernel="linear", C=0.025),
+                        SVC(gamma=2, C=1),
+                        GaussianProcessClassifier(1.0 * RBF(1.0)),
+                        DecisionTreeClassifier(max_depth=5),
+                        RandomForestClassifier(max_depth=5, n_estimators=10, max_features=1),
+                        MLPClassifier(alpha=1, max_iter=1000),
+                        AdaBoostClassifier(),
+                        GaussianNB(),
+                        QuadraticDiscriminantAnalysis()]
+        
+        if model in names:
+            fitted_models = []
+            for name, clf in zip(names, classifiers):
+            #ax = plt.subplot(len(datasets), len(classifiers) + 1, i)
+                fitted_models.append(clf.fit(X, y))
+            return fitted_models    
+        else:
+            raise InputError('Unknown model type.')
+    
     def fit_smLogit(self, X, y):
         return sm.Logit(y, X).fit(disp=False)
 

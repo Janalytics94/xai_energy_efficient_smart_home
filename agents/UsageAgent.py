@@ -23,7 +23,7 @@ from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 from tqdm import tqdm
-from scripts.helper_functions import Helper
+#from scripts.helper_functions import Helper
  
 
 class Usage_Agent:
@@ -44,9 +44,9 @@ class Usage_Agent:
 #################### MINE ###################################################################################################
     def fit_skModels(self,model, X, y):
          # models we want to try
-        names = ["Nearest Neighbors", "Linear SVM", 
-        "RBF SVM", "Gaussian Process","Decision Tree", "Random Forest", 
-        "Neural Net", "AdaBoost","Naive Bayes", "QDA", 'Logistic Regression']
+        names = ["knn", "linear svm", 
+        "rbv svm", "gaussian process","descision tree", "random forest", 
+        "nn", "ada boost","nb", "qda", 'logit']
         classifiers = [ KNeighborsClassifier(3),
                         SVC(kernel="linear", C=0.025),
                         SVC(gamma=2, C=1),
@@ -67,7 +67,7 @@ class Usage_Agent:
         else:
             raise InputError('Unknown model type.')
             
-
+##############################################################################################################################
     def fit_smLogit(self, X, y):
       return sm.Logit(y, X).fit(disp=False)
 

@@ -12,7 +12,7 @@ import statsmodels.api as sm
 import sklearn.metrics
 
 import sklearn as sk 
-from scripts.helper_functions import Helper
+from Helper import Helper
 
 
 class Preparation_Agent:
