@@ -5,5 +5,5 @@
 
 ```
 docker build . -t xai 
-docker run -it --name xai -v $(pwd):/root/ xai bash
+docker run -it --name xai -v $(pwd):/root/xai/ xai bash
 ```

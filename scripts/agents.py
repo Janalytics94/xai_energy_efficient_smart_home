@@ -21,7 +21,6 @@ import sklearn.metrics
 
 import sklearn as sk 
 from agents.Helper import Helper
-
 # Full class definition for the agents.py
 
 class Preparation_Agent:
