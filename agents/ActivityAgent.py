@@ -29,7 +29,7 @@ from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 from tqdm import tqdm
-from scripts.helper_functions import Helper
+from Helper import Helper
  
 
 class Activity_Agent:
@@ -86,8 +86,9 @@ class Activity_Agent:
         X_test = self.get_Xtest(df, date, time_delta=test_delta, target=target)
         y_test = self.get_ytest(df, date, time_delta=test_delta, target=target)
         return X_train, y_train, X_test, y_test
-
-    def fit_skModels(self,model, X, y):
+################Mine##############################
+    ## PIPELINE FUNCTIONS ONLY HAVE TO BE CHANGED SO SKMODELS!
+    def skModels(self,model, X, y):
         # models we want to try
         names = ["knn", "linear svm", 
         "rbv svm", "gaussian process","descision tree", "random forest", 
@@ -102,16 +103,39 @@ class Activity_Agent:
                         AdaBoostClassifier(),
                         GaussianNB(),
                         QuadraticDiscriminantAnalysis()]
-        
+        model_types = [type(classifier) for classifier in classifiers]
         if model in names:
-            fitted_models = []
-            for name, clf in zip(names, classifiers):
-            #ax = plt.subplot(len(datasets), len(classifiers) + 1, i)
-                fitted_models.append(clf.fit(X, y))
-            return fitted_models    
+            dict_of_classifiers = dict(zip(names, classifiers))
+            return  dict_of_classifiers, model_types   
         else:
             raise InputError('Unknown model type.')
+
+    def fit_skModels(self, model_type, X,y):
+        if model_type in dict_of_classifers:
+            fitted_model = dict_of_classifiers[model_type].fit(X,y)
+            return fitted_model
+        else:
+            raise InputError('Unknown model type')
     
+    def skModels_predict(self, model, X):
+        import sklearn
+        types = [sklearn.neighbors._classification.KNeighborsClassifier,
+                sklearn.svm._classes.SVC,
+                sklearn.svm._classes.SVC,
+                sklearn.gaussian_process._gpc.GaussianProcessClassifier,
+                sklearn.tree._classes.DecisionTreeClassifier,
+                sklearn.ensemble._forest.RandomForestClassifier,
+                sklearn.neural_network._multilayer_perceptron.MLPClassifier,
+                sklearn.ensemble._weight_boosting.AdaBoostClassifier,
+                sklearn.naive_bayes.GaussianNB,
+                sklearn.discriminant_analysis.QuadraticDiscriminantAnalysis]
+        if type(model) in types:
+            y_hat = model.predict(X)
+        else:
+            raise InputError('Unknown model type.')
+        return y_hat
+
+#######################################################################    
     def fit_smLogit(self, X, y):
         return sm.Logit(y, X).fit(disp=False)
 
@@ -171,7 +195,7 @@ class Activity_Agent:
     
         plt.plot(list(auc_train.keys()), list(auc_train.values()))
         plt.plot(list(auc_train.keys()), list(auc_test.values()))
-        plt.xticks(list(auc_train.keys()), ' ');
+        plt.xticks(list(auc_train.keys()), ' ')
         plt.ylim(ylim) if ylim != 'default' else None
 
 

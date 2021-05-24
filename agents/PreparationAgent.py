@@ -34,7 +34,7 @@ class Preparation_Agent:
     
         output = []
         counter = 0
-        for item in (tqdm(series, desc=f'[outlier truncation: {series.name}]') if verbose != 0 else series):
+        for item in (tqdm.tqdm(series, desc=f'[outlier truncation: {series.name}]') if verbose != 0 else series):
             if item > upper_bound:
                 output.append(int(upper_bound))
                 counter += 1
@@ -150,7 +150,7 @@ class Preparation_Agent:
         # hour
         hour = df.groupby('hour').mean()[columns]
         hour.plot(ax=axes[0])
-        axes[0].set_ylim(-.1, 1.1);
+        axes[0].set_ylim(-.1, 1.1)
         axes[0].set_title(f'[threshold: {round(threshold, 4)}] Activity ratio per hour')
 
         # week 
@@ -172,7 +172,7 @@ class Preparation_Agent:
 
     def validate_thresholds(self, df, thresholds, appliances, figsize=(18,5)):
         
-        for threshold in tqdm(thresholds):
+        for threshold in tqdm.tqdm(thresholds):
             self.visualize_threshold(df, threshold, appliances, figsize)
         time.sleep(0.2)
         print('\n')

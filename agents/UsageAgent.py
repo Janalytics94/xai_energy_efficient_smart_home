@@ -42,8 +42,10 @@ class Usage_Agent:
       return X_train, y_train, X_test, y_test
 
 #################### MINE ###################################################################################################
-    def fit_skModels(self,model, X, y):
-         # models we want to try
+    ################Mine##############################
+    ## PIPELINE FUNCTIONS ONLY HAVE TO BE CHANGED SO SKMODELS!
+    def skModels(self,model, X, y):
+        # models we want to try
         names = ["knn", "linear svm", 
         "rbv svm", "gaussian process","descision tree", "random forest", 
         "nn", "ada boost","nb", "qda", 'logit']
@@ -57,15 +59,38 @@ class Usage_Agent:
                         AdaBoostClassifier(),
                         GaussianNB(),
                         QuadraticDiscriminantAnalysis()]
-        
+        model_types = [type(classifier) for classifier in classifiers]
         if model in names:
-            fitted_models = []
-            for name, clf in zip(names, classifiers):
-            #ax = plt.subplot(len(datasets), len(classifiers) + 1, i)
-                fitted_models.append(clf.fit(X, y))
-            return fitted_models    
+            dict_of_classifiers = dict(zip(names, classifiers))
+            return  dict_of_classifiers, model_types   
         else:
             raise InputError('Unknown model type.')
+
+    def fit_skModels(self, model_type, X,y):
+        if model_type in dict_:
+            fitted_model = dict_[model_type].fit(X,y)
+            return fitted_model
+        else:
+            raise InputError('Unknown model type')
+    
+    def skModels_predict(self, model, X):
+        import sklearn
+        types = [sklearn.neighbors._classification.KNeighborsClassifier,
+                sklearn.svm._classes.SVC,
+                sklearn.svm._classes.SVC,
+                sklearn.gaussian_process._gpc.GaussianProcessClassifier,
+                sklearn.tree._classes.DecisionTreeClassifier,
+                sklearn.ensemble._forest.RandomForestClassifier,
+                sklearn.neural_network._multilayer_perceptron.MLPClassifier,
+                sklearn.ensemble._weight_boosting.AdaBoostClassifier,
+                sklearn.naive_bayes.GaussianNB,
+                sklearn.discriminant_analysis.QuadraticDiscriminantAnalysis]
+        if type(model) in types:
+            y_hat = model.predict(X)
+        else:
+            raise InputError('Unknown model type.')
+        return y_hat
+
             
 ##############################################################################################################################
     def fit_smLogit(self, X, y):
