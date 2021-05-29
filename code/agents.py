@@ -18,8 +18,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
-from tqdm import tqdm
-from helper_functions import Helper
+
 
 # Preparation Agent
 # ===============================================================================================
@@ -420,9 +419,8 @@ class Activity_Agent:
             raise InputError("Unknown model type.")
         return y_hat
 
-    ################Mine##############################
-    ## PIPELINE FUNCTIONS ONLY HAVE TO BE CHANGED SO SKMODELS!
-    def skModels(self,model, X, y):
+    ################ML Models ##############################
+    def skModels(self,model):
         # models we want to try
         names = ["knn", "linear svm", 
         "rbv svm", "gaussian process","descision tree", "random forest", 
@@ -444,7 +442,7 @@ class Activity_Agent:
         else:
             raise InputError('Unknown model type.')
 
-    def fit_skModels(self, model_type, X,y):
+    def fit_skModels(self,dict_of_classifiers, model_type, X,y):
         if model_type in dict_of_classifers:
             fitted_model = dict_of_classifiers[model_type].fit(X,y)
             return fitted_model
@@ -452,19 +450,19 @@ class Activity_Agent:
             raise InputError('Unknown model type')
     
     def skModels_predict(self, model, X):
-        import sklearn
-        types = [sklearn.neighbors._classification.KNeighborsClassifier,
-                sklearn.svm._classes.SVC,
-                sklearn.svm._classes.SVC,
-                sklearn.gaussian_process._gpc.GaussianProcessClassifier,
-                sklearn.tree._classes.DecisionTreeClassifier,
-                sklearn.ensemble._forest.RandomForestClassifier,
-                sklearn.neural_network._multilayer_perceptron.MLPClassifier,
-                sklearn.ensemble._weight_boosting.AdaBoostClassifier,
-                sklearn.naive_bayes.GaussianNB,
-                sklearn.discriminant_analysis.QuadraticDiscriminantAnalysis]
+        types = [sk.neighbors._classification.KNeighborsClassifier,
+                sk.svm._classes.SVC,
+                sk.svm._classes.SVC,
+                sk.gaussian_process._gpc.GaussianProcessClassifier,
+                sk.tree._classes.DecisionTreeClassifier,
+                sk.ensemble._forest.RandomForestClassifier,
+                sk.neural_network._multilayer_perceptron.MLPClassifier,
+                sk.ensemble._weight_boosting.AdaBoostClassifier,
+                sk.naive_bayes.GaussianNB,
+                sk.discriminant_analysis.QuadraticDiscriminantAnalysis]
         if type(model) in types:
             y_hat = model.predict(X)
+            #y_hat = pd.Series(y_hat, index=X_test.index)
         else:
             raise InputError('Unknown model type.')
         return y_hat
