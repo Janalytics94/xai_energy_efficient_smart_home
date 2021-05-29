@@ -39,16 +39,17 @@ docker run -it --name xai -v $(pwd):/root/xai/ xai bash
 
 # INSTRUCTIONS FOR RECREATING OUR RESULTS
 
-## Possible Additional data sets from https://github.com/smda/smart-meter-data-catalog/blob/master/datasets.yaml
+### Possible Additional data sets 
+https://github.com/smda/smart-meter-data-catalog/blob/master/datasets.yaml
 
 ### Small Data Sets 
- -  Weather, Humidity etc Smart*  
+ -  Weather, Humidity etc Smart  
     Home Data Set: link: http://traces.cs.umass.edu/index.php/Smart/Smart
     description: "The goal of the Smart* project is to optimize home energy consumption. Available here is a wide variety of data collected from three real homes, including electrical (usage and generation), environmental (e.g., temperature and humidity), and operational (e.g., wall switch events). Also available is minute-level electricity usage data from 400+ anonymous homes. Please see the Smart* home page for general information about the project, or the Smart* Tools download page for software that was used in the collection of this data."
 
 ### BIG DATA SETS    
 - Almanac of Minutely Power Dataset (AMPds):link: http://ampds.org
-    description: "The AMPds dataset has been release to help load disaggregation/NILM and eco-feedback researchers test their algorithms, models, systems, and prototypes. AMPds contains electricity, water, and natural gas measurements at one minute intervals — a total of 1,051,200 readings per meter for 2 years of monitoring. Weather data from Environment Canada\'s YVR weather station has also been added. This hourly weather data covers the same period of time as AMPds and includes a summary of climate normals observed from the years between 1981-2010. Utility billing data is also included for cost analyses."
+ description: "The AMPds dataset has been release to help load disaggregation/NILM and eco-feedback researchers test their algorithms, models,      systems, and prototypes. AMPds contains electricity, water, and natural gas measurements at one minute intervals — a total of 1,051,200 readings per meter for 2 years of monitoring. Weather data from Environment Canada\'s YVR weather station has also been added. This hourly weather data covers the same period of time as AMPds and includes a summary of climate normals observed from the years between 1981-2010. Utility billing data is also included for cost analyses."
 
 -  Electricity Consumption & Occupancy data set (ECO):
    link: https://www.vs.inf.ethz.ch/res/show.html?what=eco-data
