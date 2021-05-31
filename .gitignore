@@ -1,0 +1,6 @@
+.DS_Store
+.local
+/.vscode/
+/data/
+/code/__pycache__/
+/code/.ipynb_checkpoints/
