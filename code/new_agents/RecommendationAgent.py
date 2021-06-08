@@ -1,4 +1,7 @@
 #! /usr/bin/env python3
+import pandas as pd
+import numpy as np
+import pandas as pd
 
 
 
@@ -25,7 +28,6 @@ class Recommendation_Agent:
     # calculating costs
     # -------------------------------------------------------------------------------------------
     def electricity_prices_from_start_time(self, date):
-        import pandas as pd
 
         prices_48 = self.Price_Agent.return_day_ahead_prices(date)
         prices_from_start_time = pd.DataFrame()
@@ -36,9 +38,7 @@ class Recommendation_Agent:
         return prices_from_start_time
 
     def cost_by_starting_time(self, date, device, evaluation=False):
-        import numpy as np
-        import pandas as pd
-
+       
         # get electriciy prices following every device starting hour with previously defined function
         prices = self.electricity_prices_from_start_time(date)
         # build up table with typical load profile repeated for every hour (see Load_Agent)
