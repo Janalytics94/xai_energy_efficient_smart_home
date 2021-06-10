@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-
+import pandas as pd
+import numpy as np
+from tqdm import tqdm
 
 # Load Agent
 # ===============================================================================================
@@ -10,7 +12,7 @@ class Load_Agent:
     # selecting the correct data, identifying device runs, creating load profiles
     # -------------------------------------------------------------------------------------------
     def prove_start_end_date(self, df, date):
-        import pandas as pd
+        
 
         start_date = (df.index[0]).strftime("%Y-%m-%d")
         end_date = date
@@ -33,13 +35,11 @@ class Load_Agent:
         return df
 
     def df_yesterday_date(self, df, date):
-        import pandas as pd
 
         yesterday = (pd.to_datetime(date) - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
         return df[:yesterday]
 
     def load_profile_raw(self, df, shiftable_devices):
-        import pandas as pd
 
         hours = []
         for hour in range(1, 25):
@@ -67,7 +67,6 @@ class Load_Agent:
         return df_hours
 
     def load_profile_cleaned(self, df_hours):
-        import numpy as np
 
         for app in df_hours.keys():
             for i in df_hours[app].index:
@@ -77,7 +76,6 @@ class Load_Agent:
         return df_hours
 
     def load_profile(self, df_hours, shiftable_devices):
-        import pandas as pd
 
         hours = df_hours[shiftable_devices[0]].columns
         loads = pd.DataFrame(columns=hours)
@@ -102,9 +100,6 @@ class Load_Agent:
         return true_loads
 
     def evaluate(self, shiftable_devices, metric="mse", aggregate=True, evaluation=False):
-        from tqdm import tqdm
-        import pandas as pd
-        import numpy as np
 
         tqdm.pandas()
 

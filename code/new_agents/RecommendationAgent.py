@@ -2,8 +2,9 @@
 import pandas as pd
 import numpy as np
 import pandas as pd
-
-
+import plotly.express as px
+import plotly.graph_objects as go
+from ActivityAgent import Activity_Agent
 
 
 # Recommendation Agent
@@ -66,7 +67,6 @@ class Recommendation_Agent:
         usage_prob_threshold,
         evaluation=False,
     ):
-        import numpy as np
 
         # add split params as input
         # IN PARTICULAR --> Specify date to start training
@@ -126,7 +126,6 @@ class Recommendation_Agent:
     def recommendations_on_date_range(
         self, date_range, activity_prob_threshold=0.6, usage_prob_threshold=0.5
     ):
-        import pandas as pd
 
         recommendations = []
         for date in date_range:
@@ -135,8 +134,6 @@ class Recommendation_Agent:
         return output
 
     def visualize_recommendations_on_date_range(self, recs):
-        import plotly.express as px
-        import plotly.graph_objects as go
 
         fig = go.Figure()
 

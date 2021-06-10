@@ -1,10 +1,27 @@
 #! /usr/bin/env python3
+import pandas as pd
+import statsmodels
+import numpy as np
+import statsmodels.api as sm
+
+# More ML Models
+import sklearn 
+from sklearn.linear_model import LogisticRegression
+from sklearn.neural_network import MLPClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.gaussian_process import GaussianProcessClassifier
+from sklearn.gaussian_process.kernels import RBF
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+
 
 # Usage Agent
 # ===============================================================================================
 class Usage_Agent:
-    import pandas as pd
-
+    
     def __init__(self, input_df, device):
         self.input = input_df
         self.device = device
@@ -26,7 +43,7 @@ class Usage_Agent:
         return X_train, y_train, X_test, y_test
 
     ################Mine##############################
-    def skModels(self,model, X, y):
+    def skModels(self,model):
         # models we want to try
         names = ["knn", "linear svm", 
         "rbv svm", "gaussian process","descision tree", "random forest", 
@@ -48,15 +65,14 @@ class Usage_Agent:
         else:
             raise InputError('Unknown model type.')
 
-    def fit_skModels(self, model_type, X,y):
-        if model_type in dict_of_classifers:
+    def fit_skModels(self, model_type, X,y, dict_of_classifiers):
+        if model_type in dict_of_classifiers:
             fitted_model = dict_of_classifiers[model_type].fit(X,y)
             return fitted_model
         else:
             raise InputError('Unknown model type')
     
     def skModels_predict(self, model, X):
-        import sklearn
         types = [sklearn.neighbors._classification.KNeighborsClassifier,
                 sklearn.svm._classes.SVC,
                 sklearn.svm._classes.SVC,
@@ -78,7 +94,6 @@ class Usage_Agent:
     # model training and evaluation
     # -------------------------------------------------------------------------------------------
     def fit_smLogit(self, X, y):
-        import statsmodels.api as sm
 
         return sm.Logit(y, X).fit(disp=False)
 
@@ -90,8 +105,6 @@ class Usage_Agent:
         return model
 
     def predict(self, model, X):
-        import statsmodels
-        import numpy as np
 
         X = np.array(X)
 
@@ -109,9 +122,6 @@ class Usage_Agent:
     def evaluate(
         self, df, model_type, train_start, predict_start="2014-01-01", predict_end=-1, return_errors=False
     ):
-        import pandas as pd
-        import numpy as np
-        from tqdm import tqdm
 
         dates = pd.DataFrame(df.index)
         dates = dates.set_index(df.index)["Time"]
