@@ -242,7 +242,7 @@ class Preparation_Agent:
         return output
 
     def pipeline_load(self, df, params):
-        from helper_functions import Helper
+        
         import pandas as pd
 
         helper = Helper()

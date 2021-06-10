@@ -4,7 +4,13 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+
 from ActivityAgent import Activity_Agent
+from LoadAgent import Load_Agent
+from PreparationAgent import Preparation_Agent
+from UsageAgent import Usage_Agent
+from PriceAgent import Price_Agent
+from RecommendationAgent import Recommendation_Agent
 
 
 # Recommendation Agent

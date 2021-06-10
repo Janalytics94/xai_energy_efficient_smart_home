@@ -21,6 +21,7 @@ from PriceAgent import Price_Agent
 from RecommendationAgent import Recommendation_Agent
 
 
+
 # Evaluation Agent
 # ===============================================================================================
 class Evaluation_Agent:
@@ -30,7 +31,7 @@ class Evaluation_Agent:
         helper = Helper()
 
         self.config = config
-        self.preparation = (agents.Preparation_Agent(helper.load_household(DATA_PATH, config["data"]["household"]))
+        self.preparation = (Preparation_Agent(helper.load_household(DATA_PATH, config["data"]["household"]))
             if load_data
             else None
         )

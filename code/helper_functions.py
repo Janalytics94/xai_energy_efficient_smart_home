@@ -1,3 +1,10 @@
+import pandas as pd
+import json
+from os import walk
+
+import matplotlib.pyplot as plt
+
+
 class Helper:
 
     @staticmethod
@@ -8,7 +15,6 @@ class Helper:
 
 
     def get_timespan(self, df, start, timedelta_params):
-        import pandas as pd
 
         start = pd.to_datetime(start) if type(start) != type(pd.to_datetime('1970-01-01')) else start 
         end = start + pd.Timedelta(**timedelta_params)
@@ -43,7 +49,6 @@ class Helper:
 
 
     def load_household(self, REFIT_dir, house_id):
-        import pandas as pd
 
         data_sets = {id:f'CLEAN_House{id}.csv' for id in range(1,22)}
         filename = REFIT_dir + data_sets[house_id]
@@ -62,8 +67,7 @@ class Helper:
 
 
     def plot_consumption(self, df, features='all', figsize='default', threshold=None, title='Consumption'):
-        import matplotlib.pyplot as plt
-
+     
         df = df.copy()
         features = [column for column in df.columns if column not in ['Unix', 'Issues']] if features == 'all' else features
 
@@ -77,7 +81,7 @@ class Helper:
         ax.set_title(title);
 
     def create_day_ahead_prices_df(self, FILE_PATH, filename):
-      import pandas as pd
+      
       electricity_prices1 = pd.read_csv(FILE_PATH + filename)
       electricity_prices1["MTU (UTC)"] = electricity_prices1["MTU (UTC)"].str.split(pat = "-", n = 0).str[0]
       electricity_prices1["MTU (UTC)"] = electricity_prices1["MTU (UTC)"].str.replace("2015", "2013")
@@ -98,7 +102,6 @@ class Helper:
     
     
     def concat_household_scores(self, agent_scores):
-        import pandas as pd
         df_names = list(list(agent_scores.values())[0].keys())
         output = {}
         for name in df_names:
@@ -107,9 +110,7 @@ class Helper:
     
     
     def shiftable_device_legend(self, EXPORT_PATH):
-        from os import walk
-        import json
-        import pandas as pd
+       
         # get config files stored at the export path
         _, _, filenames = next(walk(EXPORT_PATH))
         config_files = [file for file in filenames if file.find('config.json') != -1]
