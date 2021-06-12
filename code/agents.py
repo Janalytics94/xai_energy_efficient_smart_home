@@ -5,9 +5,14 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from tqdm import tqdm
 from helper_functions import Helper
+import matplotlib.pyplot as plt
 
+import statsmodels.api as sm
+import statsmodels
+
+from InputError import InputError
 # More ML Models
-import sklearn as sk 
+import sklearn 
 from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
@@ -86,13 +91,13 @@ class Preparation_Agent:
             if features == "all"
             else features
         )
-
+        
         if kind == "MinMax":
             scaler = MinMaxScaler()
             output[features] = scaler.fit_transform(df[features])
             print("[MinMaxScaler] Finished scaling the data.") if verbose != 0 else None
         else:
-            raise InputError("Chosen scaling method is not available.")
+            print("Chosen scaling method is not available.")
         return output
 
     # feature creation
@@ -403,71 +408,52 @@ class Activity_Agent:
 
         return sm.Logit(y, X).fit(disp=False)
 
+    # Other ML Models 
+     # ---------------------------------------------------------------------------------------------
+
+    def fit_knn(self, X, y):
+        return KNeighborsClassifier(3).fit(X,y)
+
+    def fit_random_forest(self, X,y):
+        return RandomForestClassifier(max_depth=5, n_estimators=10, max_features=1).fit(X,y)
+
+    def fit_ADA(self,X,y):
+        return  AdaBoostClassifier().fit(X,y)
+    
+    #def fit_XGB(self,X,y):
+
     def fit(self, X, y, model_type):
+        model = None
         if model_type == "logit":
             model = self.fit_smLogit(X, y)
+        elif model_type == "ada":
+            model = self.fit_ADA(X,y)
+        elif model_type == "knn":
+            model = self.fit_knn(X,y)
+        elif model_type == "random forest":
+            model = self.fit_random_forest(X,y)
         else:
             raise InputError("Unknown model type.")
         return model
 
     def predict(self, model, X):
         import statsmodels
+        import numpy as np
+
+        X = np.array(X)
 
         if type(model) == statsmodels.discrete.discrete_model.BinaryResultsWrapper:
+            y_hat = model.predict(X)
+        elif type(model) == sklearn.neighbors._classification.KNeighborsClassifier:
+            y_hat = model.predict(X)
+        elif type(model) == sklearn.ensemble._forest.RandomForestClassifier:
+            y_hat = model.predict(X)
+        elif type(model) ==  sklearn.ensemble._weight_boosting.AdaBoostClassifier:
             y_hat = model.predict(X)
         else:
             raise InputError("Unknown model type.")
         return y_hat
-
-    ################ML Models ##############################
-    def skModels(self,model):
-        # models we want to try
-        names = ["knn", "linear svm", 
-        "rbv svm", "gaussian process","descision tree", "random forest", 
-        "nn", "ada boost","nb", "qda", 'logit']
-        classifiers = [ KNeighborsClassifier(3),
-                        SVC(kernel="linear", C=0.025),
-                        SVC(gamma=2, C=1),
-                        GaussianProcessClassifier(1.0 * RBF(1.0)),
-                        DecisionTreeClassifier(max_depth=5),
-                        RandomForestClassifier(max_depth=5, n_estimators=10, max_features=1),
-                        MLPClassifier(alpha=1, max_iter=1000),
-                        AdaBoostClassifier(),
-                        GaussianNB(),
-                        QuadraticDiscriminantAnalysis()]
-        model_types = [type(classifier) for classifier in classifiers]
-        if model in names:
-            dict_of_classifiers = dict(zip(names, classifiers))
-            return  dict_of_classifiers, model_types   
-        else:
-            raise InputError('Unknown model type.')
-
-    def fit_skModels(self,dict_of_classifiers, model_type, X,y):
-        if model_type in dict_of_classifers:
-            fitted_model = dict_of_classifiers[model_type].fit(X,y)
-            return fitted_model
-        else:
-            raise InputError('Unknown model type')
-    
-    def skModels_predict(self, model, X):
-        types = [sk.neighbors._classification.KNeighborsClassifier,
-                sk.svm._classes.SVC,
-                sk.svm._classes.SVC,
-                sk.gaussian_process._gpc.GaussianProcessClassifier,
-                sk.tree._classes.DecisionTreeClassifier,
-                sk.ensemble._forest.RandomForestClassifier,
-                sk.neural_network._multilayer_perceptron.MLPClassifier,
-                sk.ensemble._weight_boosting.AdaBoostClassifier,
-                sk.naive_bayes.GaussianNB,
-                sk.discriminant_analysis.QuadraticDiscriminantAnalysis]
-        if type(model) in types:
-            y_hat = model.predict(X)
-            #y_hat = pd.Series(y_hat, index=X_test.index)
-        else:
-            raise InputError('Unknown model type.')
-        return y_hat
-#############################################################################################################################
-
+   
     def auc(self, y_true, y_hat):
         import sklearn.metrics
 
@@ -515,11 +501,11 @@ class Activity_Agent:
                 )
 
                 # fit model
-                model = self.fit_skModels(X_train, y_train, model_type)
+                model = self.fit(X_train, y_train, model_type)
 
                 # predict
-                y_hat_train.update({date: self.skModels_predict(model, X_train)})
-                y_hat_test += list(self.skModels_predict(model, X_test))
+                y_hat_train.update({date: self.predict(model, X_train)})
+                y_hat_test += list(self.predict(model, X_test))
 
                 # evaluate train data
                 auc_train_dict.update(
@@ -546,10 +532,10 @@ class Activity_Agent:
         )
 
         # fit model
-        model = self.fit_skModels(X_train, y_train, model_type)
+        model = self.fit(X_train, y_train, model_type)
 
         # predict
-        return self.skModels_predict(model, X_test)
+        return self.predict(model, X_test)
 
 
 # Load Agent
@@ -762,55 +748,6 @@ class Usage_Agent:
         y_test = df.loc[date, df.columns == self.device + "_usage"]
         return X_train, y_train, X_test, y_test
 
-    ################Mine##############################
-    def skModels(self,model, X, y):
-        # models we want to try
-        names = ["knn", "linear svm", 
-        "rbv svm", "gaussian process","descision tree", "random forest", 
-        "nn", "ada boost","nb", "qda", 'logit']
-        classifiers = [ KNeighborsClassifier(3),
-                        SVC(kernel="linear", C=0.025),
-                        SVC(gamma=2, C=1),
-                        GaussianProcessClassifier(1.0 * RBF(1.0)),
-                        DecisionTreeClassifier(max_depth=5),
-                        RandomForestClassifier(max_depth=5, n_estimators=10, max_features=1),
-                        MLPClassifier(alpha=1, max_iter=1000),
-                        AdaBoostClassifier(),
-                        GaussianNB(),
-                        QuadraticDiscriminantAnalysis()]
-        model_types = [type(classifier) for classifier in classifiers]
-        if model in names:
-            dict_of_classifiers = dict(zip(names, classifiers))
-            return  dict_of_classifiers, model_types   
-        else:
-            raise InputError('Unknown model type.')
-
-    def fit_skModels(self, model_type, X,y):
-        if model_type in dict_of_classifers:
-            fitted_model = dict_of_classifiers[model_type].fit(X,y)
-            return fitted_model
-        else:
-            raise InputError('Unknown model type')
-    
-    def skModels_predict(self, model, X):
-        import sklearn
-        types = [sklearn.neighbors._classification.KNeighborsClassifier,
-                sklearn.svm._classes.SVC,
-                sklearn.svm._classes.SVC,
-                sklearn.gaussian_process._gpc.GaussianProcessClassifier,
-                sklearn.tree._classes.DecisionTreeClassifier,
-                sklearn.ensemble._forest.RandomForestClassifier,
-                sklearn.neural_network._multilayer_perceptron.MLPClassifier,
-                sklearn.ensemble._weight_boosting.AdaBoostClassifier,
-                sklearn.naive_bayes.GaussianNB,
-                sklearn.discriminant_analysis.QuadraticDiscriminantAnalysis]
-        if type(model) in types:
-            y_hat = model.predict(X)
-        else:
-            raise InputError('Unknown model type.')
-        return y_hat
-#############################################################################################################################
-    
     
     # model training and evaluation
     # -------------------------------------------------------------------------------------------
@@ -819,9 +756,32 @@ class Usage_Agent:
 
         return sm.Logit(y, X).fit(disp=False)
 
+    # Other ML Models 
+     # ---------------------------------------------------------------------------------------------
+
+    def fit_knn(self, X, y):
+        return KNeighborsClassifier(3).fit(X,y)
+
+    def fit_random_forest(self, X,y):
+        return RandomForestClassifier(max_depth=5, n_estimators=10, max_features=1).fit(X,y)
+
+    def fit_ADA(self,X,y):
+        return  AdaBoostClassifier().fit(X,y)
+    
+    #def fit_XGB(self,X,y):
+
     def fit(self, X, y, model_type):
+        model = None
         if model_type == "logit":
             model = self.fit_smLogit(X, y)
+        elif model_type == "ada":
+            model = self.fit_ADA(X,y)
+        elif model_type == "knn":
+            model = self.fit_knn(X,y)
+        elif mode_type == "random forest":
+            model = self.fit_random_forest(X,y)
+        #if model_type == "xgb":
+        #   model = self.fit_XGB(X,y)
         else:
             raise InputError("Unknown model type.")
         return model
@@ -834,11 +794,17 @@ class Usage_Agent:
 
         if type(model) == statsmodels.discrete.discrete_model.BinaryResultsWrapper:
             y_hat = model.predict(X)
+        elif type(model) == sklearn.neighbors._classification.KNeighborsClassifier:
+            y_hat = model.predict(X)
+        elif type(model) == sklearn.ensemble._forest.RandomForestClassifier:
+            y_hat = model.predict(X)
+        elif type(model) ==  sklearn.ensemble._weight_boosting.AdaBoostClassifier:
+            y_hat = model.predict(X)
+        # if type(model) == xgboost
         else:
             raise InputError("Unknown model type.")
         return y_hat
 
-    
     def auc(self, y_true, y_hat):
         import sklearn.metrics
         return sklearn.metrics.roc_auc_score(y_true, y_hat)
@@ -872,10 +838,10 @@ class Usage_Agent:
                     df, date, train_start
                 )
                 # fit model
-                model = self.fit_skModels(X_train, y_train, model_type)
+                model = self.fit(X_train, y_train, model_type)
                 # predict
-                y_hat_train.update({date: self.skModels_predict(model, X_train)})
-                y_hat_test += list(self.skModels_predict(model, X_test))
+                y_hat_train.update({date: self.predict(model, X_train)})
+                y_hat_test += list(self.predict(model, X_test))
                 # evaluate train data
                 auc_train_dict.update(
                     {date: self.auc(y_train, list(y_hat_train.values())[-1])}
@@ -896,8 +862,8 @@ class Usage_Agent:
     # -------------------------------------------------------------------------------------------        
     def pipeline(self, df, date, model_type, train_start):
         X_train, y_train, X_test, y_test = self.train_test_split(df, date, train_start)
-        model = self.fit_skModels(X_train, y_train, model_type)
-        return self.skModels_predict(model, X_test)    
+        model = self.fit(X_train, y_train, model_type)
+        return self.predict(model, X_test)    
 
     
 
@@ -960,6 +926,7 @@ class Recommendation_Agent:
         self,
         date,
         device,
+        model_type,
         activity_prob_threshold,
         usage_prob_threshold,
         evaluation=False,
@@ -977,7 +944,7 @@ class Recommendation_Agent:
         costs = self.cost_by_starting_time(date, device, evaluation=evaluation)
         # compute activity probabilities
         if not evaluation:
-            activity_probs = self.Activity_Agent.pipeline(self.activity_input, date, "logit", split_params)
+            activity_probs = self.Activity_Agent.pipeline(self.activity_input, date, model_type, split_params) # knn, #random forest #ada
         else:
             # get activity probs for date
             activity_probs = evaluation["activity"][date]
@@ -996,7 +963,7 @@ class Recommendation_Agent:
 
         # compute likelihood of usage:
         if not evaluation:
-            usage_prob = self.Usage_Agent[device].pipeline(self.usage_input, date, "logit", split_params["train_start"])
+            usage_prob = self.Usage_Agent[device].pipeline(self.usage_input, date, model_type, split_params["train_start"])
         else:
             # get usage probs
             name = ("usage_"+ device.replace(" ", "_").replace("(", "").replace(")", "").lower())
@@ -1559,7 +1526,7 @@ class Evaluation_Agent:
                 train_start=self.config["data"]["start_dates"][agent],
             )
             try:
-                model = self[agent].fit(X_train, y_train, "logit")
+                model = self[agent].fit(X_train, y_train, model_type)
                 y_hat[date] = self[agent].predict(model, X_test)
             except Exception as e:
                 self.errors["evaluation"][agent][date] = type(e).__name__

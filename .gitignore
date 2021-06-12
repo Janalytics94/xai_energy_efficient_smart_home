@@ -1,6 +1,9 @@
 .DS_Store
+.idea
 .local
 /.vscode/
 /data/
 /code/__pycache__/
 /code/.ipynb_checkpoints/
+/code/new_agents/__pycache__
+/venv/
