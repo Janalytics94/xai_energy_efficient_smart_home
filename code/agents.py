@@ -415,7 +415,7 @@ class Activity_Agent:
         return KNeighborsClassifier(3).fit(X,y)
 
     def fit_random_forest(self, X,y):
-        return RandomForestClassifier(max_depth=5, n_estimators=10, max_features=1).fit(X,y)
+        return RandomForestClassifier(max_depth=5, n_estimators=240, max_features=1).fit(X,y)
 
     def fit_ADA(self,X,y):
         return  AdaBoostClassifier().fit(X,y)
@@ -439,8 +439,12 @@ class Activity_Agent:
     def predict(self, model, X):
         import statsmodels
         import numpy as np
+        import pandas
 
-        X = np.array(X)
+        if type(X) == pandas.core.series.Series:
+            X = pd.DataFrame(X).transpose() 
+        else:
+            X=np.squeeze(np.asarray(X))     
 
         if type(model) == statsmodels.discrete.discrete_model.BinaryResultsWrapper:
             y_hat = model.predict(X)
@@ -763,7 +767,7 @@ class Usage_Agent:
         return KNeighborsClassifier(3).fit(X,y)
 
     def fit_random_forest(self, X,y):
-        return RandomForestClassifier(max_depth=5, n_estimators=10, max_features=1).fit(X,y)
+        return RandomForestClassifier(max_depth=5, n_estimators=240, max_features=1).fit(X,y)
 
     def fit_ADA(self,X,y):
         return  AdaBoostClassifier().fit(X,y)
@@ -778,7 +782,7 @@ class Usage_Agent:
             model = self.fit_ADA(X,y)
         elif model_type == "knn":
             model = self.fit_knn(X,y)
-        elif mode_type == "random forest":
+        elif model_type == "random forest":
             model = self.fit_random_forest(X,y)
         #if model_type == "xgb":
         #   model = self.fit_XGB(X,y)
@@ -789,9 +793,12 @@ class Usage_Agent:
     def predict(self, model, X):
         import statsmodels
         import numpy as np
+        import pandas
 
-        X = np.array(X)
-
+        if type(X) == pandas.core.series.Series:
+            X = pd.DataFrame(X).transpose() 
+        else:
+            X=np.squeeze(np.asarray(X))      
         if type(model) == statsmodels.discrete.discrete_model.BinaryResultsWrapper:
             y_hat = model.predict(X)
         elif type(model) == sklearn.neighbors._classification.KNeighborsClassifier:
