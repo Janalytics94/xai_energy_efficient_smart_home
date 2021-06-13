@@ -798,7 +798,8 @@ class Usage_Agent:
         if type(X) == pandas.core.series.Series:
             X = pd.DataFrame(X).transpose() 
         else:
-            X=np.squeeze(np.asarray(X))      
+            X=np.squeeze(np.asarray(X))  
+
         if type(model) == statsmodels.discrete.discrete_model.BinaryResultsWrapper:
             y_hat = model.predict(X)
         elif type(model) == sklearn.neighbors._classification.KNeighborsClassifier:
@@ -878,13 +879,14 @@ class Usage_Agent:
 # ===============================================================================================
 class Recommendation_Agent:
     def __init__(
-        self, activity_input, usage_input, load_input, price_input, shiftable_devices
+        self, activity_input, usage_input, load_input, price_input, shiftable_devices, model_type
     ):
         self.activity_input = activity_input
         self.usage_input = usage_input
         self.load_input = load_input
         self.price_input = price_input
         self.shiftable_devices = shiftable_devices
+        self.model_type = model_type
         self.Activity_Agent = Activity_Agent(activity_input)
         # create dicionnary with Usage_Agent for each device
         self.Usage_Agent = {
@@ -933,7 +935,6 @@ class Recommendation_Agent:
         self,
         date,
         device,
-        model_type,
         activity_prob_threshold,
         usage_prob_threshold,
         evaluation=False,
@@ -951,7 +952,7 @@ class Recommendation_Agent:
         costs = self.cost_by_starting_time(date, device, evaluation=evaluation)
         # compute activity probabilities
         if not evaluation:
-            activity_probs = self.Activity_Agent.pipeline(self.activity_input, date, model_type, split_params) # knn, #random forest #ada
+            activity_probs = self.Activity_Agent.pipeline(self.activity_input, date, self.model_type, split_params) # knn, #random forest #ada
         else:
             # get activity probs for date
             activity_probs = evaluation["activity"][date]
@@ -970,7 +971,7 @@ class Recommendation_Agent:
 
         # compute likelihood of usage:
         if not evaluation:
-            usage_prob = self.Usage_Agent[device].pipeline(self.usage_input, date, model_type, split_params["train_start"])
+            usage_prob = self.Usage_Agent[device].pipeline(self.usage_input, date, self.model_type, split_params["train_start"])
         else:
             # get usage probs
             name = ("usage_"+ device.replace(" ", "_").replace("(", "").replace(")", "").lower())
