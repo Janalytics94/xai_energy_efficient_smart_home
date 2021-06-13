@@ -1,9 +1,10 @@
-import pandas as pd
+#!/usr/bin/env python3
+ 
 import json
-from os import walk
-
+import pandas as pd
 import matplotlib.pyplot as plt
-
+from tqdm import tqdm
+from os import walk
 
 class Helper:
 
@@ -15,7 +16,7 @@ class Helper:
 
 
     def get_timespan(self, df, start, timedelta_params):
-
+        
         start = pd.to_datetime(start) if type(start) != type(pd.to_datetime('1970-01-01')) else start 
         end = start + pd.Timedelta(**timedelta_params)
         return df[start:end]
@@ -67,7 +68,7 @@ class Helper:
 
 
     def plot_consumption(self, df, features='all', figsize='default', threshold=None, title='Consumption'):
-     
+       
         df = df.copy()
         features = [column for column in df.columns if column not in ['Unix', 'Issues']] if features == 'all' else features
 
@@ -81,7 +82,6 @@ class Helper:
         ax.set_title(title);
 
     def create_day_ahead_prices_df(self, FILE_PATH, filename):
-      
       electricity_prices1 = pd.read_csv(FILE_PATH + filename)
       electricity_prices1["MTU (UTC)"] = electricity_prices1["MTU (UTC)"].str.split(pat = "-", n = 0).str[0]
       electricity_prices1["MTU (UTC)"] = electricity_prices1["MTU (UTC)"].str.replace("2015", "2013")
@@ -110,7 +110,6 @@ class Helper:
     
     
     def shiftable_device_legend(self, EXPORT_PATH):
-       
         # get config files stored at the export path
         _, _, filenames = next(walk(EXPORT_PATH))
         config_files = [file for file in filenames if file.find('config.json') != -1]
