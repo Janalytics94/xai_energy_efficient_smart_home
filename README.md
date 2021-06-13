@@ -1,14 +1,12 @@
 # Topic S2: Explainable Recommendation Systems in Energy‐Efficient Smart Home
 ## Seminar Applied Predictive Analytics at HU
 
-<<<<<<< HEAD
 Link to Abstract
 https://docs.google.com/document/d/1jYaAYHeiy-8xz6jHZOEGybr_TQCPGwcelyqtFpljhhI/edit#heading=h.dbw1g9cog2rz
 
 Link to other notes:
 https://docs.google.com/document/d/1_xYo9eFa8QD25YOE8TClkJW2xLA_Od7NyhG98tfMO6w/edit#
 
-=======
 # Usage Docker Container
 
 ```
@@ -82,4 +80,3 @@ https://github.com/smda/smart-meter-data-catalog/blob/master/datasets.yaml
 ENTSO-E (n.d.). Day-ahead prices (12.1.d) [online database]. Retrieved December 8, 2020, from https://transparency.entsoe.eu/transmission-domain/r2/dayAheadPrices/show
 
 Murray, D., Stankovic, L., & Stankovic, V. (2017). An electrical load measurements datasetof united kingdom households from a two-year longitudinal study [data set]. Scientific Data.
->>>>>>> jana
