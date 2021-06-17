@@ -935,6 +935,7 @@ class Recommendation_Agent:
         self,
         date,
         device,
+        model_type,
         activity_prob_threshold,
         usage_prob_threshold,
         evaluation=False,
@@ -976,11 +977,16 @@ class Recommendation_Agent:
             # get usage probs
             name = ("usage_"+ device.replace(" ", "_").replace("(", "").replace(")", "").lower())
             usage_prob = evaluation[name][date]
-
-        no_recommend_flag_usage = 0
-        if usage_prob < usage_prob_threshold:
-            no_recommend_flag_usage = 1
-
+        
+        if model_type == 'logit':
+                no_recommend_flag_usage = 0
+                if (usage_prob < usage_prob_threshold).bool():
+                    no_recommend_flag_usage = 1
+        else:
+            no_recommend_flag_usage = 0
+            if usage_prob < usage_prob_threshold:
+                no_recommend_flag_usage = 1
+                
         return {
             "recommendation_date": [date],
             "device": [device],
