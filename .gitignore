@@ -6,5 +6,7 @@
 /data/
 /code/__pycache__/
 /code/.ipynb_checkpoints/
-/code/new_agents/__pycache__
+/code/new_agents/
 /venv/
+/apartment-weather/
+/export/
