@@ -1067,15 +1067,17 @@ class Recommendation_Agent:
 
 # Evaluation Agent
 # ===============================================================================================
-class Evaluation_Agent:
-    def __init__(self, DATA_PATH, config, load_data=True, load_files=None):
+class Performance_Evaluation_Agent:
+    def __init__(self, DATA_PATH, model_type, config, load_data=True, load_files=None):
         import agents
         from helper_functions import Helper
         import pandas as pd
 
         helper = Helper()
-
+        
+        self.model_type = model_type
         self.config = config
+       
         self.preparation = (agents.Preparation_Agent(helper.load_household(DATA_PATH, config["data"]["household"]))
             if load_data
             else None
@@ -1218,7 +1220,7 @@ class Evaluation_Agent:
             self.init_agents()
         self._get_dates()
         self.config["activity"] = {
-            "model_type": "logit",
+            "model_type": "logit",#["random forest", "knn", "ada"],#"xgboost"
             "split_params": {
                 "train_start": deepcopy(self.config["data"]["start_dates"]["activity"]),
                 "test_delta": {"days": 1, "seconds": -1},
@@ -1243,7 +1245,7 @@ class Evaluation_Agent:
             self.init_agents()
         self._get_dates()
         self.config["usage"] = {
-            "model_type": "logit",
+            "model_type":  "logit", #["random forest", "knn", "ada"],
             "train_start": deepcopy(self.config["data"]["start_dates"]["usage"]),
         }
         for device in self.config["user_input"]["shiftable_devices"]:
@@ -1325,6 +1327,7 @@ class Evaluation_Agent:
             self.df["load"],
             self.price.input,
             self.config["user_input"]["shiftable_devices"],
+            self.model_type
         )
             
     def _prepare(self, agent="all"):
