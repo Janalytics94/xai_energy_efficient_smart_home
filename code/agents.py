@@ -1408,13 +1408,13 @@ class Performance_Evaluation_Agent:
         for date in dates:
             try:
                 self.output["recommendation"][date] = self.recommendation.pipeline(
-                    date, activity_threshold, usage_threshold, evaluation=self.output
+                    date, self.model_type, activity_threshold, usage_threshold, evaluation=self.output
                 )
             except Exception as e:
                 self.errors["recommendation"][date] = e
 
         # merging the recommendations into one dataframe
-        df = list(self.output["recommendation"].values())[0]
+        df = list(self.output["recommendation"].values())[1]
 
         for idx in range(1, len(self.output["recommendation"].values())):
             df = df.append(list(self.output["recommendation"].values())[idx])
