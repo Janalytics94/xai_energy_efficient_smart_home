@@ -438,6 +438,7 @@ class Activity_Agent:
         import numpy as np
         import pandas
 
+        index = X.index.values
         if type(X) == pandas.core.series.Series:
             X = pd.DataFrame(X).transpose() 
         else:
@@ -455,6 +456,8 @@ class Activity_Agent:
             y_hat = model.predict(X)
         else:
             raise InputError("Unknown model type.")
+        y_hat = pd.Series(y_hat, index=index, name='Time')
+        
         return y_hat
    
     def auc(self, y_true, y_hat):
@@ -790,10 +793,10 @@ class Usage_Agent:
         return model
 
     def predict(self, model, X):
-        import statsmodels
         import numpy as np
         import pandas
 
+        index = X.index.values
         if type(X) == pandas.core.series.Series:
             X = pd.DataFrame(X).transpose() 
         else:
@@ -811,6 +814,7 @@ class Usage_Agent:
             y_hat = model.predict(X)
         else:
             raise InputError("Unknown model type.")
+        y_hat = pd.Series(y_hat, index=index, name='Time')
         return y_hat
 
     def auc(self, y_true, y_hat):
@@ -1220,7 +1224,7 @@ class Performance_Evaluation_Agent:
             self.init_agents()
         self._get_dates()
         self.config["activity"] = {
-            "model_type": "logit",#["random forest", "knn", "ada"],#"xgboost"
+            "model_type": self.model_type,#["random forest", "knn", "ada"],#"xgboost"
             "split_params": {
                 "train_start": deepcopy(self.config["data"]["start_dates"]["activity"]),
                 "test_delta": {"days": 1, "seconds": -1},
@@ -1245,7 +1249,7 @@ class Performance_Evaluation_Agent:
             self.init_agents()
         self._get_dates()
         self.config["usage"] = {
-            "model_type":  "logit", #["random forest", "knn", "ada"],
+            "model_type":  self.model_type, #["random forest", "knn", "ada"],
             "train_start": deepcopy(self.config["data"]["start_dates"]["usage"]),
         }
         for device in self.config["user_input"]["shiftable_devices"]:
@@ -1415,10 +1419,10 @@ class Performance_Evaluation_Agent:
 
        # try:
         # merging the recommendations into one dataframe
-       #     df = list(self.output["recommendation"].values())[1]
+        df = list(self.output["recommendation"].values())[0]
        # except IndexError as e:
        #     pass
-        df = pd.DataFrame()
+        #df = pd.DataFrame()
         for idx in range(1, len(self.output["recommendation"].values())):
             df = df.append(list(self.output["recommendation"].values())[idx])
         
