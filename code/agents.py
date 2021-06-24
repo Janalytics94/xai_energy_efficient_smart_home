@@ -9,20 +9,13 @@ import matplotlib.pyplot as plt
 
 import statsmodels.api as sm
 import statsmodels
+import xgboost as xgb
 
 from InputError import InputError
 # More ML Models
 import sklearn 
-from sklearn.linear_model import LogisticRegression
-from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC
-from sklearn.gaussian_process import GaussianProcessClassifier
-from sklearn.gaussian_process.kernels import RBF
-from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 
 
 # Preparation Agent
@@ -420,7 +413,8 @@ class Activity_Agent:
     def fit_ADA(self,X,y):
         return  AdaBoostClassifier().fit(X,y)
     
-    #def fit_XGB(self,X,y):
+    def fit_XGB(self,X,y):
+        return xgb.XGBClassifier().fix(X,y)
 
     def fit(self, X, y, model_type):
         model = None
@@ -432,6 +426,8 @@ class Activity_Agent:
             model = self.fit_knn(X,y)
         elif model_type == "random forest":
             model = self.fit_random_forest(X,y)
+        elif model_type == "xgboost":
+            model = self.fit_XGB(X,y)
         else:
             raise InputError("Unknown model type.")
         return model
@@ -453,6 +449,8 @@ class Activity_Agent:
         elif type(model) == sklearn.ensemble._forest.RandomForestClassifier:
             y_hat = model.predict(X)
         elif type(model) ==  sklearn.ensemble._weight_boosting.AdaBoostClassifier:
+            y_hat = model.predict(X)
+        elif type(model) == xgboost.sklearn.XGBClassifier:
             y_hat = model.predict(X)
         else:
             raise InputError("Unknown model type.")
@@ -772,8 +770,9 @@ class Usage_Agent:
     def fit_ADA(self,X,y):
         return  AdaBoostClassifier().fit(X,y)
     
-    #def fit_XGB(self,X,y):
-
+    def fit_XGB(self,X,y):
+        return xgb.XGBClassifier().fit(X,y)
+    
     def fit(self, X, y, model_type):
         model = None
         if model_type == "logit":
@@ -784,8 +783,8 @@ class Usage_Agent:
             model = self.fit_knn(X,y)
         elif model_type == "random forest":
             model = self.fit_random_forest(X,y)
-        #if model_type == "xgb":
-        #   model = self.fit_XGB(X,y)
+        elif model_type == "xgboost":
+           model = self.fit_XGB(X,y)
         else:
             raise InputError("Unknown model type.")
         return model
@@ -808,7 +807,8 @@ class Usage_Agent:
             y_hat = model.predict(X)
         elif type(model) ==  sklearn.ensemble._weight_boosting.AdaBoostClassifier:
             y_hat = model.predict(X)
-        # if type(model) == xgboost
+        elif type(model) == xgboost.sklearn.XGBClassifier:
+            y_hat = model.predict(X)
         else:
             raise InputError("Unknown model type.")
         return y_hat
@@ -1418,9 +1418,12 @@ class Performance_Evaluation_Agent:
 
         for idx in range(1, len(self.output["recommendation"].values())):
             df = df.append(list(self.output["recommendation"].values())[idx])
-        df.set_index("recommendation_date", inplace=True)
-        self.output["recommendation"] = df
-        clear_output()
+        try:
+            df.set_index("recommendation_date", inplace=True)
+            self.output["recommendation"] = df
+            clear_output()
+        except InputError as e:
+            continue
 
         
     # individual agent scores

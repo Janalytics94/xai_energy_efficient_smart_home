@@ -55,4 +55,5 @@ tqdm==4.60.0
 traitlets==5.0.5
 wcwidth==0.2.5
 webencodings==0.5.1
+xgboost==1.4.2
 yml==0.0.1
