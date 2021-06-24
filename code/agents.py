@@ -495,6 +495,29 @@ class Activity_Agent:
         auc_train_dict = {}
         auc_test = []
 
+        # Add Weather
+        ################################
+        from meteostat import Point, Hourly
+        from datetime import datetime
+
+        lough = Point(52.766593, -1.223511)
+        time = df.index.to_series(name="time").tolist()
+        weather = Hourly(lough, time[0], time[len(df) - 1])
+        weather = weather.fetch()
+
+        from sklearn.impute import KNNImputer
+        import numpy as np
+
+        imputer = KNNImputer(missing_values=np.nan, n_neighbors=7, weights="distance")
+        weather = imputer.fit_transform(weather)
+        weather = pd.DataFrame(weather)
+        weather["time"] = time
+        df["time"] = time
+        df = pd.merge(df, weather, how="left", on="time")
+        df = df.set_index("time")
+        # df.drop("time", axis=1, inplace=True)
+        ################################
+
         for date in tqdm(dates):
             errors = {}
             try:
@@ -528,6 +551,30 @@ class Activity_Agent:
     # pipeline function: predicting user activity
     # -------------------------------------------------------------------------------------------
     def pipeline(self, df, date, model_type, split_params):
+
+        # Add Weather
+        ################################
+        from meteostat import Point, Hourly
+        from datetime import datetime
+
+        lough = Point(52.766593, -1.223511)
+        time = df.index.to_series(name="time").tolist()
+        weather = Hourly(lough, time[0], time[len(df) - 1])
+        weather = weather.fetch()
+
+        from sklearn.impute import KNNImputer
+        import numpy as np
+
+        imputer = KNNImputer(missing_values=np.nan, n_neighbors=7, weights="distance")
+        weather = imputer.fit_transform(weather)
+        weather = pd.DataFrame(weather)
+        weather["time"] = time
+        df["time"] = time
+        df = pd.merge(df, weather, how="left", on="time")
+        df = df.set_index("time")
+        # df.drop("time", axis=1, inplace=True)
+        ################################
+
         # train test split
         X_train, y_train, X_test, y_test = self.train_test_split(
             df, date, **split_params
@@ -742,6 +789,11 @@ class Usage_Agent:
             self.device + "_usage_lag_1",
             self.device + "_usage_lag_2",
             "active_last_2_days",
+            "0",
+            "1",
+            "2",
+            "3",
+            "4"
         ]
         df = df[select_vars]
         X_train = df.loc[train_start:date, df.columns != self.device + "_usage"]
@@ -839,6 +891,31 @@ class Usage_Agent:
         auc_train_dict = {}
         auc_test = []
 
+        # Add Weather
+        ################################
+        from meteostat import Point, Daily
+        from datetime import datetime, timedelta
+
+        lough = Point(52.766593, -1.223511)
+        time = df.index.to_series(name="time").tolist()
+        start = time[0]
+        end = time[len(time) - 1]
+        weather = Daily(lough, start, end)
+        weather = weather.fetch()
+
+        from sklearn.impute import KNNImputer
+        import numpy as np
+
+        imputer = KNNImputer(missing_values=np.nan, n_neighbors=7, weights="distance")
+        weather = imputer.fit_transform(weather)
+        weather = pd.DataFrame(weather)
+        weather["time"] = time[0:len(weather)]
+        df["time"] = time
+        df = pd.merge(df, weather, how="right", on="time")
+        df = df.set_index("time")
+        # df.drop("time", axis=1, inplace=True)
+        ################################
+
         for date in tqdm(dates.index):
             errors = {}
             try:
@@ -869,6 +946,32 @@ class Usage_Agent:
     # pipeline function: predicting device usage
     # -------------------------------------------------------------------------------------------        
     def pipeline(self, df, date, model_type, train_start):
+
+        # Add Weather
+        ################################
+        from meteostat import Point, Daily
+        from datetime import datetime, timedelta
+
+        lough = Point(52.766593, -1.223511)
+        time = df.index.to_series(name="time").tolist()
+        start = time[0]
+        end = time[len(time) - 1]
+        weather = Daily(lough, start, end)
+        weather = weather.fetch()
+
+        from sklearn.impute import KNNImputer
+        import numpy as np
+
+        imputer = KNNImputer(missing_values=np.nan, n_neighbors=7, weights="distance")
+        weather = imputer.fit_transform(weather)
+        weather = pd.DataFrame(weather)
+        weather["time"] = time[0:len(weather)]
+        df["time"] = time
+        df = pd.merge(df, weather, how="right", on="time")
+        df = df.set_index("time")
+        # df.drop("time", axis=1, inplace=True)
+        ################################
+
         X_train, y_train, X_test, y_test = self.train_test_split(df, date, train_start)
         model = self.fit(X_train, y_train, model_type)
         return self.predict(model, X_test)    
