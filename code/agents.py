@@ -1422,8 +1422,8 @@ class Performance_Evaluation_Agent:
             df.set_index("recommendation_date", inplace=True)
             self.output["recommendation"] = df
             clear_output()
-        except InputError as e:
-            continue
+        except IndexError as e:
+            pass
 
         
     # individual agent scores
