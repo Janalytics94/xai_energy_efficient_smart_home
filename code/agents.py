@@ -7,15 +7,17 @@ from tqdm import tqdm
 from helper_functions import Helper
 import matplotlib.pyplot as plt
 
-import statsmodels.api as sm
-import statsmodels
+#import statsmodels.api as sm
+#import statsmodels
 import xgboost as xgb
+import xgboost
 
 from InputError import InputError
 # More ML Models
 import sklearn 
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from sklearn.linear_model import LogisticRegression
 
 
 # Preparation Agent
@@ -396,10 +398,9 @@ class Activity_Agent:
 
     # model training and evaluation
     # -------------------------------------------------------------------------------------------
-    def fit_smLogit(self, X, y):
-        import statsmodels.api as sm
+    def fit_Logit(self, X, y):
 
-        return sm.Logit(y, X).fit(disp=False)
+        return LogisticRegression(random_state=0).fit(X, y)
 
     # Other ML Models 
      # ---------------------------------------------------------------------------------------------
@@ -414,12 +415,12 @@ class Activity_Agent:
         return  AdaBoostClassifier().fit(X,y)
     
     def fit_XGB(self,X,y):
-        return xgb.XGBClassifier().fix(X,y)
+        return xgb.XGBClassifier().fit(X,y)
 
     def fit(self, X, y, model_type):
         model = None
         if model_type == "logit":
-            model = self.fit_smLogit(X, y)
+            model = self.fit_Logit(X, y)
         elif model_type == "ada":
             model = self.fit_ADA(X,y)
         elif model_type == "knn":
@@ -442,7 +443,7 @@ class Activity_Agent:
         else:
             X=np.squeeze(np.asarray(X))     
 
-        if type(model) == statsmodels.discrete.discrete_model.BinaryResultsWrapper:
+        if type(model) == sklearn.linear_model.LogisticRegression:
             y_hat = model.predict(X)
         elif type(model) == sklearn.neighbors._classification.KNeighborsClassifier:
             y_hat = model.predict(X)
@@ -753,10 +754,9 @@ class Usage_Agent:
     
     # model training and evaluation
     # -------------------------------------------------------------------------------------------
-    def fit_smLogit(self, X, y):
-        import statsmodels.api as sm
+    def fit_Logit(self, X, y):
 
-        return sm.Logit(y, X).fit(disp=False)
+        return LogisticRegression(random_state=0).fit(X, y)
 
     # Other ML Models 
      # ---------------------------------------------------------------------------------------------
@@ -776,7 +776,7 @@ class Usage_Agent:
     def fit(self, X, y, model_type):
         model = None
         if model_type == "logit":
-            model = self.fit_smLogit(X, y)
+            model = self.fit_Logit(X, y)
         elif model_type == "ada":
             model = self.fit_ADA(X,y)
         elif model_type == "knn":
@@ -799,7 +799,7 @@ class Usage_Agent:
         else:
             X=np.squeeze(np.asarray(X))  
 
-        if type(model) == statsmodels.discrete.discrete_model.BinaryResultsWrapper:
+        if type(model) == sklearn.linear_model.LogisticRegression:
             y_hat = model.predict(X)
         elif type(model) == sklearn.neighbors._classification.KNeighborsClassifier:
             y_hat = model.predict(X)
@@ -1413,17 +1413,18 @@ class Performance_Evaluation_Agent:
             except Exception as e:
                 self.errors["recommendation"][date] = e
 
+       # try:
         # merging the recommendations into one dataframe
-        df = list(self.output["recommendation"].values())[1]
-
+       #     df = list(self.output["recommendation"].values())[1]
+       # except IndexError as e:
+       #     pass
+        df = pd.DataFrame()
         for idx in range(1, len(self.output["recommendation"].values())):
             df = df.append(list(self.output["recommendation"].values())[idx])
-        try:
-            df.set_index("recommendation_date", inplace=True)
-            self.output["recommendation"] = df
-            clear_output()
-        except IndexError as e:
-            pass
+        
+        df.set_index("recommendation_date", inplace=True)
+        self.output["recommendation"] = df
+        clear_output()
 
         
     # individual agent scores
