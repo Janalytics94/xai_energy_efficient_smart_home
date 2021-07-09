@@ -1389,7 +1389,9 @@ class Performance_Evaluation_Agent:
                     print(f"progress: \t{dates.index(date)+1}/{len(dates)}")
                     print(f"time:\t\t[{self._format_time(elapsed)}<{self._format_time(remaining)}]\n")
                     print(self.output[agent][date])
-                    output_df.loc[i] = [agent, date, time, self.output[agent][date]]
+#               # quesiton: is this right there or move after except? what happens with index if sth goes wrong?
+                output_df.loc[i] = [agent, date, time, self.output[agent][date]]
+                    #h = h+1
             except Exception as e:
                 self.errors[agent][date] = type(e).__name__
             i = i+1
@@ -1428,10 +1430,10 @@ class Performance_Evaluation_Agent:
 
        # try:
         # merging the recommendations into one dataframe
-        df = list(self.output["recommendation"].values())[0]
+        #df = list(self.output["recommendation"].values())[0]
        # except IndexError as e:
        #     pass
-        #df = pd.DataFrame()
+        df = pd.DataFrame(list(self.output["recommendation"].values())[0])
         for idx in range(1, len(self.output["recommendation"].values())):
             df = df.append(list(self.output["recommendation"].values())[idx])
         
