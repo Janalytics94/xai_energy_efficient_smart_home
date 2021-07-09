@@ -456,7 +456,7 @@ class Activity_Agent:
             y_hat = model.predict(X)
         else:
             raise InputError("Unknown model type.")
-        y_hat = pd.Series(y_hat, index=index, name='Time')
+        # y_hat = pd.Series(y_hat, index=index, name='Time')
         
         return y_hat
    
@@ -814,7 +814,7 @@ class Usage_Agent:
             y_hat = model.predict(X)
         else:
             raise InputError("Unknown model type.")
-        y_hat = pd.Series(y_hat, index=index, name='Time')
+        # y_hat = pd.Series(y_hat, index=index, name='Time')
         return y_hat
 
     def auc(self, y_true, y_hat):
