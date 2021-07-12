@@ -415,7 +415,7 @@ class Activity_Agent:
         return  AdaBoostClassifier().fit(X,y)
     
     def fit_XGB(self,X,y):
-        return xgb.XGBClassifier().fit(X,y)
+        return xgb.XGBClassifier(verbosity=0).fit(X,y)
 
     def fit(self, X, y, model_type):
         model = None
@@ -1066,8 +1066,18 @@ class Recommendation_Agent:
             recommendations_table = recommendations_table.append(
                 pd.DataFrame.from_dict(recommendations_by_device)
             )
-        return recommendations_table
+            for i in range(len(recommendations_table)):
+                date_and_time = recommendations_table.recommendation_date.iloc[i] + ':' + str(recommendations_table.best_launch_hour.iloc[i])
+                
+                date_and_time =  datetime.strptime(date_and_time, '%Y-%m-%d:%H')
 
+                date_and_time_show = date_and_time.strftime(format = "%d.%m.%Y %H:%M") 
+                date_and_time_price = date_and_time.strftime(format = "%Y-%m-%d %H:%M:%S") 
+                price = price.filter(like=date_and_time_price, axis=0)['Price_at_H+0'].iloc[0]	
+                output = print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i]+ '\n\n Please use the device on the ' + date_and_time_show[0:10] + ' at ' + date_and_time_show[11:] + ' Uhr because it cost you only ' + str(price) + ' €.\n') 
+                if (recommendations_table.no_recommend_flag_activity.iloc[i]==0 and recommendations_table.no_recommend_flag_usage.iloc[i]==0) == True:
+                    
+                    return output
 
 # Evaluation Agent
 # ===============================================================================================
