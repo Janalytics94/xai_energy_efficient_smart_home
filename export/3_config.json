@@ -143,7 +143,7 @@
         }
     },
     "activity": {
-        "model_type": "logit",
+        "model_type": "knn",
         "split_params": {
             "train_start": "2013-09-29",
             "test_delta": {
@@ -154,19 +154,19 @@
         }
     },
     "usage": {
-        "model_type": "logit",
+        "model_type": "knn",
         "train_start": "2013-09-28"
     },
     "usage_tumble_dryer": {
-        "model_type": "logit",
+        "model_type": "knn",
         "train_start": "2013-09-28"
     },
     "usage_washing_machine": {
-        "model_type": "logit",
+        "model_type": "knn",
         "train_start": "2013-09-28"
     },
     "usage_dishwasher": {
-        "model_type": "logit",
+        "model_type": "knn",
         "train_start": "2013-09-28"
     },
     "load": {
@@ -175,31 +175,5 @@
             "Washing Machine",
             "Dishwasher"
         ]
-    },
-    "evaluation": {
-        "grid_search": {
-            "activity_thresholds": [
-                0.125,
-                0.25,
-                0.375,
-                0.5,
-                0.625,
-                0.75,
-                0.875
-            ],
-            "usage_thresholds": [
-                0.125,
-                0.25,
-                0.375,
-                0.5,
-                0.625,
-                0.75,
-                0.875
-            ],
-            "optimal_thresholds": {
-                "activity_threshold": "0.625",
-                "usage_threshold": "0.125"
-            }
-        }
     }
 }
