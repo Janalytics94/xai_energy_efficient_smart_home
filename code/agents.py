@@ -992,6 +992,17 @@ class Recommendation_Agent:
             ],
         }
 
+    # visualize recommendation_by device 
+    def visualize_recommendation_by_device(self, dict):
+        recommendation_date = str(dict['recommendation_date'][0])
+        recommendation_date = datetime.strptime(recommendation_date, '%Y-%m-%d')
+        recommendation_date = recommendation_date.strftime(format = "%d.%m.%Y %H:%M")
+        device = dict['device'][0]
+        best_launch_hour = dict['best_launch_hour'][0] 
+        if (dict['no_recommend_flag_activity'][0]== 0 and dict['no_recommend_flag_usage'][0]==0) == True:
+            return print('You have one recommendation for the following device: ' + device + '\nPlease use it on ' + recommendation_date[0:10] + ' at '+ recommendation_date[11:]+'.')
+        
+
     # vizualizing the recommendations
     # -------------------------------------------------------------------------------------------
     def recommendations_on_date_range(
