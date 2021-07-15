@@ -399,23 +399,22 @@ class Activity_Agent:
     # model training and evaluation
     # -------------------------------------------------------------------------------------------
     def fit_Logit(self, X, y):
-
         return LogisticRegression(random_state=0).fit(X, y)
 
     # Other ML Models 
      # ---------------------------------------------------------------------------------------------
 
     def fit_knn(self, X, y):
-        return KNeighborsClassifier(3).fit(X,y)
+        return KNeighborsClassifier(3).fit(X, y)
 
     def fit_random_forest(self, X,y):
         return RandomForestClassifier(max_depth=5, n_estimators=240, max_features=1).fit(X,y)
 
     def fit_ADA(self,X,y):
-        return  AdaBoostClassifier().fit(X,y)
+        return  AdaBoostClassifier().fit(X, y)
     
     def fit_XGB(self,X,y):
-        return xgb.XGBClassifier(verbosity=0).fit(X,y)
+        return xgb.XGBClassifier(verbosity=0).fit(X, y)
 
     def fit(self, X, y, model_type):
         model = None
@@ -433,36 +432,36 @@ class Activity_Agent:
             raise InputError("Unknown model type.")
         return model
 
+    
     def predict(self, model, X):
-        import statsmodels
         import numpy as np
-        import pandas
-
-        index = X.index.values
-        if type(X) == pandas.core.series.Series:
-            X = pd.DataFrame(X).transpose() 
-        else:
-            X=np.squeeze(np.asarray(X))     
+        import pandas    
 
         if type(model) == sklearn.linear_model.LogisticRegression:
-            y_hat = model.predict(X)
+            y_hat = model.predict_proba(X)[:,1]
+
         elif type(model) == sklearn.neighbors._classification.KNeighborsClassifier:
-            y_hat = model.predict(X)
+            y_hat = model.predict_proba(X)[:,1]
+
         elif type(model) == sklearn.ensemble._forest.RandomForestClassifier:
-            y_hat = model.predict(X)
+            y_hat = model.predict_proba(X)[:,1]
+        
         elif type(model) ==  sklearn.ensemble._weight_boosting.AdaBoostClassifier:
-            y_hat = model.predict(X)
+            y_hat = model.predict_proba(X)[:,1]
+        
         elif type(model) == xgboost.sklearn.XGBClassifier:
-            y_hat = model.predict(X)
+            y_hat = model.predict_proba(X)[:,1]
+        
         else:
             raise InputError("Unknown model type.")
-        # y_hat = pd.Series(y_hat, index=index, name='Time')
         
-        return y_hat
+        y_hat = pd.Series(y_hat, index=X.index)
+        
+        return y_hat        
+    
    
     def auc(self, y_true, y_hat):
         import sklearn.metrics
-
         return sklearn.metrics.roc_auc_score(y_true, y_hat)
 
     def plot_model_performance(self, auc_train, auc_test, ylim="default"):
@@ -758,7 +757,6 @@ class Usage_Agent:
     # model training and evaluation
     # -------------------------------------------------------------------------------------------
     def fit_Logit(self, X, y):
-
         return LogisticRegression(random_state=0).fit(X, y)
 
     # Other ML Models 
@@ -796,26 +794,22 @@ class Usage_Agent:
         import numpy as np
         import pandas
 
-        index = X.index.values
-        if type(X) == pandas.core.series.Series:
-            X = pd.DataFrame(X).transpose() 
-        else:
-            X=np.squeeze(np.asarray(X))  
-
+        X = np.array(X).reshape(-1,3)
         if type(model) == sklearn.linear_model.LogisticRegression:
-            y_hat = model.predict(X)
+            y_hat = model.predict_proba(X)[:,1]
         elif type(model) == sklearn.neighbors._classification.KNeighborsClassifier:
-            y_hat = model.predict(X)
+            y_hat = model.predict_proba(X)[:,1]
         elif type(model) == sklearn.ensemble._forest.RandomForestClassifier:
-            y_hat = model.predict(X)
+            y_hat = model.predict_proba(X)[:,1]
         elif type(model) ==  sklearn.ensemble._weight_boosting.AdaBoostClassifier:
-            y_hat = model.predict(X)
+            y_hat = model.predict_proba(X)[:,1]
         elif type(model) == xgboost.sklearn.XGBClassifier:
-            y_hat = model.predict(X)
-        else:
+            y_hat = model.predict_proba(X)[:,1]
+        else: 
             raise InputError("Unknown model type.")
-        # y_hat = pd.Series(y_hat, index=index, name='Time')
+        
         return y_hat
+
 
     def auc(self, y_true, y_hat):
         import sklearn.metrics
@@ -883,14 +877,13 @@ class Usage_Agent:
 # ===============================================================================================
 class Recommendation_Agent:
     def __init__(
-        self, activity_input, usage_input, load_input, price_input, shiftable_devices, model_type
-    ):
+        self, activity_input, usage_input, load_input, price_input, shiftable_devices):
         self.activity_input = activity_input
         self.usage_input = usage_input
         self.load_input = load_input
         self.price_input = price_input
         self.shiftable_devices = shiftable_devices
-        self.model_type = model_type
+        #self.model_type = model_type
         self.Activity_Agent = Activity_Agent(activity_input)
         # create dicionnary with Usage_Agent for each device
         self.Usage_Agent = {
@@ -939,7 +932,6 @@ class Recommendation_Agent:
         self,
         date,
         device,
-        model_type,
         activity_prob_threshold,
         usage_prob_threshold,
         evaluation=False,
@@ -982,15 +974,11 @@ class Recommendation_Agent:
             name = ("usage_"+ device.replace(" ", "_").replace("(", "").replace(")", "").lower())
             usage_prob = evaluation[name][date]
         
-        if model_type == 'logit':
-                no_recommend_flag_usage = 0
-                if (usage_prob < usage_prob_threshold).bool():
-                    no_recommend_flag_usage = 1
-        else:
-            no_recommend_flag_usage = 0
-            if usage_prob < usage_prob_threshold:
-                no_recommend_flag_usage = 1
-                
+        
+        no_recommend_flag_usage = 0
+        if usage_prob < usage_prob_threshold:
+            no_recommend_flag_usage = 1
+               
         return {
             "recommendation_date": [date],
             "device": [device],
@@ -1066,6 +1054,10 @@ class Recommendation_Agent:
             recommendations_table = recommendations_table.append(
                 pd.DataFrame.from_dict(recommendations_by_device)
             )
+        return recommendations_table
+
+        def visualize_recommendation(self, recommendations_table):
+            
             for i in range(len(recommendations_table)):
                 date_and_time = recommendations_table.recommendation_date.iloc[i] + ':' + str(recommendations_table.best_launch_hour.iloc[i])
                 
@@ -1076,10 +1068,11 @@ class Recommendation_Agent:
                 price = price.filter(like=date_and_time_price, axis=0)['Price_at_H+0'].iloc[0]	
                 output = print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i]+ '\n\n Please use the device on the ' + date_and_time_show[0:10] + ' at ' + date_and_time_show[11:] + ' Uhr because it cost you only ' + str(price) + ' €.\n') 
                 if (recommendations_table.no_recommend_flag_activity.iloc[i]==0 and recommendations_table.no_recommend_flag_usage.iloc[i]==0) == True:
-                    
                     return output
+                else:
+                    return
 
-# Evaluation Agent
+# Performance Evaluation Agent
 # ===============================================================================================
 class Performance_Evaluation_Agent:
     def __init__(self, DATA_PATH, model_type, config, load_data=True, load_files=None):
@@ -1340,8 +1333,7 @@ class Performance_Evaluation_Agent:
             self.df["usage"],
             self.df["load"],
             self.price.input,
-            self.config["user_input"]["shiftable_devices"],
-            self.model_type
+            self.config["user_input"]["shiftable_devices"]
         )
             
     def _prepare(self, agent="all"):
@@ -1422,20 +1414,16 @@ class Performance_Evaluation_Agent:
         for date in dates:
             try:
                 self.output["recommendation"][date] = self.recommendation.pipeline(
-                    date, self.model_type, activity_threshold, usage_threshold, evaluation=self.output
+                    date, activity_threshold, usage_threshold, evaluation=self.output
                 )
             except Exception as e:
                 self.errors["recommendation"][date] = e
 
-       # try:
         # merging the recommendations into one dataframe
         df = list(self.output["recommendation"].values())[0]
-       # except IndexError as e:
-       #     pass
-        #df = pd.DataFrame()
+      
         for idx in range(1, len(self.output["recommendation"].values())):
-            df = df.append(list(self.output["recommendation"].values())[idx])
-        
+            df = df.append(list(self.output["recommendation"].values())[idx]) 
         df.set_index("recommendation_date", inplace=True)
         self.output["recommendation"] = df
         clear_output()
