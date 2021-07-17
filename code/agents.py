@@ -7,14 +7,14 @@ from tqdm import tqdm
 from helper_functions import Helper
 import matplotlib.pyplot as plt
 
-#import statsmodels.api as sm
-#import statsmodels
+# import statsmodels.api as sm
+# import statsmodels
 import xgboost as xgb
 import xgboost
 
 from InputError import InputError
 # More ML Models
-import sklearn 
+import sklearn
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
@@ -29,7 +29,6 @@ class Preparation_Agent:
     # stardard data preprocessing
     # -------------------------------------------------------------------------------------------
     def outlier_truncation(self, series, factor=1.5, verbose=0):
-        
 
         q1 = series.quantile(0.25)
         q3 = series.quantile(0.75)
@@ -50,8 +49,8 @@ class Preparation_Agent:
                 counter += 1
             elif item < lower_bound:
                 output.append(int(lower_bound))
-                counter +=1
-                
+                counter += 1
+
             else:
                 output.append(item)
         print(
@@ -86,7 +85,7 @@ class Preparation_Agent:
             if features == "all"
             else features
         )
-        
+
         if kind == "MinMax":
             scaler = MinMaxScaler()
             output[features] = scaler.fit_transform(df[features])
@@ -169,8 +168,6 @@ class Preparation_Agent:
         df = df.join(self.get_time_feature(df))
         df["activity"] = self.get_activity(df, appliances, threshold)
 
-
-
         usage_cols = [column for column in df.columns if column.endswith("_usage")]
         columns = ["activity"] + usage_cols
 
@@ -188,7 +185,7 @@ class Preparation_Agent:
         week = week.reindex(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
         week = week.rename(index=(lambda day: day[:3]))
         week.plot(ax=axes[1])
-        axes[1].set_ylim(-0.1, 1.1)        
+        axes[1].set_ylim(-0.1, 1.1)
         axes[1].set_title(
             f"[threshold: {round(threshold, 4)}] Activity ratio per day of the week"
         )
@@ -208,11 +205,11 @@ class Preparation_Agent:
             self.visualize_threshold(df, threshold, appliances, figsize)
         time.sleep(0.2)
         print("\n")
-        
+
     # pipeline functions: preparing the input for the following agents
     # -------------------------------------------------------------------------------------------
     def pipeline_activity(self, df, params):
-        
+
         helper = Helper()
         df = df.copy()
         output = pd.DataFrame()
@@ -239,10 +236,21 @@ class Preparation_Agent:
         # Dummy coding
         output = pd.get_dummies(output, drop_first=True)
 
+        # Add weather possibly
+        if "temp" in df.columns:
+            output["temp"] = df["temp"].fillna(method="backfill")
+        if "dwpt" in df.columns:
+            output["dwpt"] = df["dwpt"].fillna(method="backfill")
+        if "rhum" in df.columns:
+            output["rhum"] = df["rhum"].fillna(method="backfill")
+        if "wdir" in df.columns:
+            output["wdir"] = df["wdir"].fillna(method="backfill")
+        if "wspd" in df.columns:
+            output["wspd"] = df["wspd"].fillna(method="backfill")
         return output
 
     def pipeline_load(self, df, params):
-        
+
         import pandas as pd
 
         helper = Helper()
@@ -322,7 +330,20 @@ class Preparation_Agent:
         # dummy coding
         output = pd.get_dummies(output, drop_first=True)
 
+        # Add weather possibly
+        if "temp" in df.columns:
+            output["temp"] = df["temp"].fillna(method="backfill")
+        if "dwpt" in df.columns:
+            output["dwpt"] = df["dwpt"].fillna(method="backfill")
+        if "rhum" in df.columns:
+            output["rhum"] = df["rhum"].fillna(method="backfill")
+        if "wdir" in df.columns:
+            output["wdir"] = df["wdir"].fillna(method="backfill")
+        if "wspd" in df.columns:
+            output["wspd"] = df["wspd"].fillna(method="backfill")
+
         return output
+
 
 # Activity Agent
 # ===============================================================================================
@@ -339,7 +360,7 @@ class Activity_Agent:
         helper = Helper()
 
         if time_delta == "all":
-            output = df.loc[pd.to_datetime(date) :, df.columns != target]
+            output = df.loc[pd.to_datetime(date):, df.columns != target]
         else:
             df = helper.get_timespan(df, date, time_delta)
             output = df.loc[:, df.columns != target]
@@ -352,7 +373,7 @@ class Activity_Agent:
         helper = Helper()
 
         if time_delta == "all":
-            output = df.loc[pd.to_datetime(date) :, target]
+            output = df.loc[pd.to_datetime(date):, target]
         else:
             output = helper.get_timespan(df, date, time_delta)[target]
         return output
@@ -401,18 +422,18 @@ class Activity_Agent:
     def fit_Logit(self, X, y):
         return LogisticRegression(random_state=0).fit(X, y)
 
-    # Other ML Models 
+    # Other ML Models
      # ---------------------------------------------------------------------------------------------
 
     def fit_knn(self, X, y):
         return KNeighborsClassifier(3).fit(X, y)
 
-    def fit_random_forest(self, X,y):
-        return RandomForestClassifier(max_depth=5, n_estimators=240, max_features=1).fit(X,y)
+    def fit_random_forest(self, X, y):
+        return RandomForestClassifier(max_depth=5, n_estimators=240, max_features=1).fit(X, y)
 
     def fit_ADA(self,X,y):
         return  AdaBoostClassifier().fit(X, y)
-    
+
     def fit_XGB(self,X,y):
         return xgb.XGBClassifier(verbosity=0).fit(X, y)
 
@@ -421,21 +442,21 @@ class Activity_Agent:
         if model_type == "logit":
             model = self.fit_Logit(X, y)
         elif model_type == "ada":
-            model = self.fit_ADA(X,y)
+            model = self.fit_ADA(X, y)
         elif model_type == "knn":
-            model = self.fit_knn(X,y)
+            model = self.fit_knn(X, y)
         elif model_type == "random forest":
-            model = self.fit_random_forest(X,y)
+            model = self.fit_random_forest(X, y)
         elif model_type == "xgboost":
-            model = self.fit_XGB(X,y)
+            model = self.fit_XGB(X, y)
         else:
             raise InputError("Unknown model type.")
         return model
 
-    
+
     def predict(self, model, X):
         import numpy as np
-        import pandas    
+        import pandas
 
         if type(model) == sklearn.linear_model.LogisticRegression:
             y_hat = model.predict_proba(X)[:,1]
@@ -445,21 +466,21 @@ class Activity_Agent:
 
         elif type(model) == sklearn.ensemble._forest.RandomForestClassifier:
             y_hat = model.predict_proba(X)[:,1]
-        
+
         elif type(model) ==  sklearn.ensemble._weight_boosting.AdaBoostClassifier:
             y_hat = model.predict_proba(X)[:,1]
-        
+
         elif type(model) == xgboost.sklearn.XGBClassifier:
             y_hat = model.predict_proba(X)[:,1]
-        
+
         else:
             raise InputError("Unknown model type.")
-        
+
         y_hat = pd.Series(y_hat, index=X.index)
-        
-        return y_hat        
-    
-   
+
+        return y_hat
+
+
     def auc(self, y_true, y_hat):
         import sklearn.metrics
         return sklearn.metrics.roc_auc_score(y_true, y_hat)
@@ -473,7 +494,8 @@ class Activity_Agent:
         plt.ylim(ylim) if ylim != "default" else None
 
     def evaluate(
-        self, df, model_type, split_params, predict_start="2014-01-01", predict_end=-1, return_errors=False
+            self, df, model_type, split_params, predict_start="2014-01-01", predict_end=-1, return_errors=False,
+            weather_sel=False
     ):
         import pandas as pd
         import numpy as np
@@ -497,6 +519,43 @@ class Activity_Agent:
         y_hat_test = []
         auc_train_dict = {}
         auc_test = []
+
+        if weather_sel:
+            # Add Weather
+            ################################
+            from meteostat import Point, Hourly
+            from datetime import datetime
+
+            lough = Point(52.766593, -1.223511)
+            time = df.index.to_series(name="time").tolist()
+            weather = Hourly(lough, time[0], time[len(df) - 1])
+            weather = weather.fetch()
+
+            from sklearn.impute import KNNImputer
+            import numpy as np
+
+            headers = weather.columns.values
+
+            empty_train_columns = []
+            for col in weather.columns.values:
+                if sum(weather[col].isnull()) == weather.shape[0]:
+                    empty_train_columns.append(col)
+            headers = np.setdiff1d(headers, empty_train_columns)
+
+            imputer = KNNImputer(missing_values=np.nan, n_neighbors=7, weights="distance")
+            weather = imputer.fit_transform(weather)
+            scaler = MinMaxScaler()
+            weather = scaler.fit_transform(weather)
+            weather = pd.DataFrame(weather)
+            weather["time"] = time[0:len(weather)]
+            df["time"] = time
+
+            weather.columns = np.append(headers, "time")
+
+            df = pd.merge(df, weather, how="right", on="time")
+            df = df.set_index("time")
+            # df.drop("time", axis=1, inplace=True)
+            ################################
 
         for date in tqdm(dates):
             errors = {}
@@ -530,7 +589,46 @@ class Activity_Agent:
 
     # pipeline function: predicting user activity
     # -------------------------------------------------------------------------------------------
-    def pipeline(self, df, date, model_type, split_params):
+    def pipeline(self, df, date, model_type, split_params, weather_sel=False):
+
+        if weather_sel:
+
+            # Add Weather
+            ################################
+            from meteostat import Point, Hourly
+            from datetime import datetime
+
+            lough = Point(52.766593, -1.223511)
+            time = df.index.to_series(name="time").tolist()
+            weather = Hourly(lough, time[0], time[len(df) - 1])
+            weather = weather.fetch()
+
+            from sklearn.impute import KNNImputer
+            import numpy as np
+
+            headers = weather.columns.values
+
+            empty_train_columns = []
+            for col in weather.columns.values:
+                if sum(weather[col].isnull()) == weather.shape[0]:
+                    empty_train_columns.append(col)
+            headers = np.setdiff1d(headers, empty_train_columns)
+
+            imputer = KNNImputer(missing_values=np.nan, n_neighbors=7, weights="distance")
+            weather = imputer.fit_transform(weather)
+            scaler = MinMaxScaler()
+            weather = scaler.fit_transform(weather)
+            weather = pd.DataFrame(weather)
+            weather["time"] = time[0:len(weather)]
+            df["time"] = time
+
+            weather.columns = np.append(headers, "time")
+
+            df = pd.merge(df, weather, how="right", on="time")
+            df = df.set_index("time")
+            # df.drop("time", axis=1, inplace=True)
+            ################################
+
         # train test split
         X_train, y_train, X_test, y_test = self.train_test_split(
             df, date, **split_params
@@ -700,7 +798,7 @@ class Load_Agent:
 
         if aggregate:
             scores = {device: scores_df.mean() for device, scores_df in scores.items()}
-        return scores    
+        return scores
 
     # pipeline function: creating typical load profiles
     # -------------------------------------------------------------------------------------------
@@ -712,6 +810,7 @@ class Load_Agent:
         df_hours = self.load_profile_cleaned(df_hours)
         loads = self.load_profile(df_hours, shiftable_devices)
         return loads
+
 
 # Price Agent
 # ===============================================================================================================
@@ -728,6 +827,7 @@ class Price_Agent:
         prices = self.input.loc[range]
         return prices
 
+
 # Usage Agent
 # ===============================================================================================
 class Usage_Agent:
@@ -739,13 +839,34 @@ class Usage_Agent:
 
     # train test split
     # -------------------------------------------------------------------------------------------
-    def train_test_split(self, df, date, train_start="2013-11-01"):
+    def train_test_split(self, df, date, train_start="2013-11-01", weather_sel=False):
+        df.columns = df.columns.map(str)
         select_vars = [
             self.device + "_usage",
             self.device + "_usage_lag_1",
             self.device + "_usage_lag_2",
             "active_last_2_days",
         ]
+        # Add weather possibly
+        if "temp" in df.columns:
+            select_vars.append("temp")
+            df["temp"] = df["temp"].fillna(method="backfill")
+        if "dwpt" in df.columns:
+            select_vars.append("dwpt")
+            df["dwpt"] = df["dwpt"].fillna(method="backfill")
+        if "rhum" in df.columns:
+            select_vars.append("rhum")
+            df["rhum"] = df["rhum"].fillna(method="backfill")
+        if "wdir" in df.columns:
+            select_vars.append("wdir")
+            df["wdir"] = df["wdir"].fillna(method="backfill")
+        if "wspd" in df.columns:
+            select_vars.append("wspd")
+            df["wspd"] = df["wspd"].fillna(method="backfill")
+
+        # if weather_sel:
+        #     select_vars.extend(["tavg", "tmax", "tmin", "wdir", "wspd"])
+
         df = df[select_vars]
         X_train = df.loc[train_start:date, df.columns != self.device + "_usage"]
         y_train = df.loc[train_start:date, df.columns == self.device + "_usage"]
@@ -759,29 +880,29 @@ class Usage_Agent:
     def fit_Logit(self, X, y):
         return LogisticRegression(random_state=0).fit(X, y)
 
-    # Other ML Models 
-     # ---------------------------------------------------------------------------------------------
+    # Other ML Models
+    # ---------------------------------------------------------------------------------------------
 
     def fit_knn(self, X, y):
-        return KNeighborsClassifier(3).fit(X,y)
+        return KNeighborsClassifier(3).fit(X, y)
 
-    def fit_random_forest(self, X,y):
-        return RandomForestClassifier(max_depth=5, n_estimators=240, max_features=1).fit(X,y)
+    def fit_random_forest(self, X, y):
+        return RandomForestClassifier(max_depth=5, n_estimators=240, max_features=1).fit(X, y)
 
     def fit_ADA(self,X,y):
         return  AdaBoostClassifier().fit(X,y)
-    
+
     def fit_XGB(self,X,y):
         return xgb.XGBClassifier().fit(X,y)
-    
+
     def fit(self, X, y, model_type):
         model = None
         if model_type == "logit":
             model = self.fit_Logit(X, y)
         elif model_type == "ada":
-            model = self.fit_ADA(X,y)
+            model = self.fit_ADA(X, y)
         elif model_type == "knn":
-            model = self.fit_knn(X,y)
+            model = self.fit_knn(X, y)
         elif model_type == "random forest":
             model = self.fit_random_forest(X,y)
         elif model_type == "xgboost":
@@ -805,18 +926,19 @@ class Usage_Agent:
             y_hat = model.predict_proba(X)[:,1]
         elif type(model) == xgboost.sklearn.XGBClassifier:
             y_hat = model.predict_proba(X)[:,1]
-        else: 
+        else:
             raise InputError("Unknown model type.")
-        
+
         return y_hat
 
 
     def auc(self, y_true, y_hat):
         import sklearn.metrics
         return sklearn.metrics.roc_auc_score(y_true, y_hat)
-    
+
     def evaluate(
-        self, df, model_type, train_start, predict_start="2014-01-01", predict_end=-1, return_errors=False
+            self, df, model_type, train_start, predict_start="2014-01-01", predict_end=-1, return_errors=False,
+            weather_sel=False
     ):
         import pandas as pd
         import numpy as np
@@ -837,11 +959,50 @@ class Usage_Agent:
         auc_train_dict = {}
         auc_test = []
 
+        if weather_sel:
+            # Add Weather
+            ################################
+            from meteostat import Point, Daily
+            from datetime import datetime, timedelta
+
+            lough = Point(52.766593, -1.223511)
+            time = df.index.to_series(name="time").tolist()
+            start = time[0]
+            end = time[len(time) - 1]
+            weather = Daily(lough, start, end)
+            weather = weather.fetch()
+
+            from sklearn.impute import KNNImputer
+            import numpy as np
+
+            headers = weather.columns.values
+
+            empty_train_columns = []
+            for col in weather.columns.values:
+                if sum(weather[col].isnull()) == weather.shape[0]:
+                    empty_train_columns.append(col)
+            headers = np.setdiff1d(headers, empty_train_columns)
+
+            imputer = KNNImputer(missing_values=np.nan, n_neighbors=7, weights="distance")
+            weather = imputer.fit_transform(weather)
+            scaler = MinMaxScaler()
+            weather = scaler.fit_transform(weather)
+            weather = pd.DataFrame(weather)
+            weather["time"] = time[0:len(weather)]
+            df["time"] = time
+
+            weather.columns = np.append(headers, "time")
+
+            df = pd.merge(df, weather, how="right", on="time")
+            df = df.set_index("time")
+            # df.drop("time", axis=1, inplace=True)
+            ################################
+
         for date in tqdm(dates.index):
             errors = {}
             try:
                 X_train, y_train, X_test, y_test = self.train_test_split(
-                    df, date, train_start
+                    df, date, train_start, weather_sel=weather_sel
                 )
                 # fit model
                 model = self.fit(X_train, y_train, model_type)
@@ -863,15 +1024,54 @@ class Usage_Agent:
             return auc_train, auc_test, auc_train_dict, errors
         else:
             return auc_train, auc_test, auc_train_dict
-        
-    # pipeline function: predicting device usage
-    # -------------------------------------------------------------------------------------------        
-    def pipeline(self, df, date, model_type, train_start):
-        X_train, y_train, X_test, y_test = self.train_test_split(df, date, train_start)
-        model = self.fit(X_train, y_train, model_type)
-        return self.predict(model, X_test)    
 
-    
+    # pipeline function: predicting device usage
+    # -------------------------------------------------------------------------------------------
+    def pipeline(self, df, date, model_type, train_start, weather_sel=False):
+
+        if weather_sel:
+            # Add Weather
+            ################################
+            from meteostat import Point, Daily
+            from datetime import datetime, timedelta
+
+            lough = Point(52.766593, -1.223511)
+            time = df.index.to_series(name="time").tolist()
+            start = time[0]
+            end = time[len(time) - 1]
+            weather = Daily(lough, start, end)
+            weather = weather.fetch()
+
+            from sklearn.impute import KNNImputer
+            import numpy as np
+
+            headers = weather.columns.values
+
+            empty_train_columns = []
+            for col in weather.columns.values:
+                if sum(weather[col].isnull()) == weather.shape[0]:
+                    empty_train_columns.append(col)
+            headers = np.setdiff1d(headers, empty_train_columns)
+
+            imputer = KNNImputer(missing_values=np.nan, n_neighbors=7, weights="distance")
+            weather = imputer.fit_transform(weather)
+            scaler = MinMaxScaler()
+            weather = scaler.fit_transform(weather)
+            weather = pd.DataFrame(weather)
+            weather["time"] = time[0:len(weather)]
+            df["time"] = time
+
+            weather.columns = np.append(headers, "time")
+
+            df = pd.merge(df, weather, how="right", on="time")
+            df = df.set_index("time")
+            # df.drop("time", axis=1, inplace=True)
+            ################################
+
+        X_train, y_train, X_test, y_test = self.train_test_split(df, date, train_start, weather_sel=weather_sel)
+        model = self.fit(X_train, y_train, model_type)
+        return self.predict(model, X_test)
+
 
 # Recommendation Agent
 # ===============================================================================================
@@ -925,7 +1125,7 @@ class Recommendation_Agent:
         costs = np.sum(costs, axis=0)
         # return an array of size 24 containing the total cost at each staring hour.
         return costs
-    
+
     # creating recommendations
     # -------------------------------------------------------------------------------------------
     def recommend_by_device(
@@ -935,6 +1135,7 @@ class Recommendation_Agent:
         activity_prob_threshold,
         usage_prob_threshold,
         evaluation=False,
+        weather_sel=False
     ):
         import numpy as np
 
@@ -949,7 +1150,10 @@ class Recommendation_Agent:
         costs = self.cost_by_starting_time(date, device, evaluation=evaluation)
         # compute activity probabilities
         if not evaluation:
-            activity_probs = self.Activity_Agent.pipeline(self.activity_input, date, self.model_type, split_params) # knn, #random forest #ada
+            if weather_sel:
+                activity_probs = self.Activity_Agent.pipeline(self.activity_input, date, self.model_type, split_params, weather_sel=True)
+            else:
+                activity_probs = self.Activity_Agent.pipeline(self.activity_input, date, self.model_type, split_params)
         else:
             # get activity probs for date
             activity_probs = evaluation["activity"][date]
@@ -971,14 +1175,14 @@ class Recommendation_Agent:
             usage_prob = self.Usage_Agent[device].pipeline(self.usage_input, date, self.model_type, split_params["train_start"])
         else:
             # get usage probs
-            name = ("usage_"+ device.replace(" ", "_").replace("(", "").replace(")", "").lower())
+            name = ("usage_" + device.replace(" ", "_").replace("(", "").replace(")", "").lower())
             usage_prob = evaluation[name][date]
-        
-        
+
+
         no_recommend_flag_usage = 0
         if usage_prob < usage_prob_threshold:
             no_recommend_flag_usage = 1
-               
+
         return {
             "recommendation_date": [date],
             "device": [device],
@@ -992,16 +1196,16 @@ class Recommendation_Agent:
             ],
         }
 
-    # visualize recommendation_by device 
+    # visualize recommendation_by device
     def visualize_recommendation_by_device(self, dict):
         recommendation_date = str(dict['recommendation_date'][0])
         recommendation_date = datetime.strptime(recommendation_date, '%Y-%m-%d')
         recommendation_date = recommendation_date.strftime(format = "%d.%m.%Y %H:%M")
         device = dict['device'][0]
-        best_launch_hour = dict['best_launch_hour'][0] 
+        best_launch_hour = dict['best_launch_hour'][0]
         if (dict['no_recommend_flag_activity'][0]== 0 and dict['no_recommend_flag_usage'][0]==0) == True:
             return print('You have one recommendation for the following device: ' + device + '\nPlease use it on ' + recommendation_date[0:10] + ' at '+ recommendation_date[11:]+'.')
-        
+
 
     # vizualizing the recommendations
     # -------------------------------------------------------------------------------------------
@@ -1039,10 +1243,10 @@ class Recommendation_Agent:
 
         ax = sns.displot(recs, x="recommendation", binwidth=1)
         ax.set(xlabel="Hour of Recommendation", ylabel="counts")
-    
+
     # pipeline function: create recommendations
     # -------------------------------------------------------------------------------------------
-    def pipeline(self, date, activity_prob_threshold, usage_prob_threshold, evaluation=False):
+    def pipeline(self, date, activity_prob_threshold, usage_prob_threshold, evaluation=False, weather_sel=False):
         import pandas as pd
 
         recommendations_by_device = self.recommend_by_device(
@@ -1055,29 +1259,39 @@ class Recommendation_Agent:
         recommendations_table = pd.DataFrame.from_dict(recommendations_by_device)
 
         for device in self.shiftable_devices[1:]:
-            recommendations_by_device = self.recommend_by_device(
-                date,
-                device,
-                activity_prob_threshold,
-                usage_prob_threshold,
-                evaluation=evaluation,
-            )
+            if weather_sel:
+                recommendations_by_device = self.recommend_by_device(
+                    date,
+                    device,
+                    activity_prob_threshold,
+                    usage_prob_threshold,
+                    evaluation=evaluation,
+                    weather_sel=True
+                )
+            else:
+                recommendations_by_device = self.recommend_by_device(
+                    date,
+                    device,
+                    activity_prob_threshold,
+                    usage_prob_threshold,
+                    evaluation=evaluation,
+                )
             recommendations_table = recommendations_table.append(
                 pd.DataFrame.from_dict(recommendations_by_device)
             )
         return recommendations_table
 
         def visualize_recommendation(self, recommendations_table):
-            
+
             for i in range(len(recommendations_table)):
                 date_and_time = recommendations_table.recommendation_date.iloc[i] + ':' + str(recommendations_table.best_launch_hour.iloc[i])
-                
+
                 date_and_time =  datetime.strptime(date_and_time, '%Y-%m-%d:%H')
 
-                date_and_time_show = date_and_time.strftime(format = "%d.%m.%Y %H:%M") 
-                date_and_time_price = date_and_time.strftime(format = "%Y-%m-%d %H:%M:%S") 
-                price = price.filter(like=date_and_time_price, axis=0)['Price_at_H+0'].iloc[0]	
-                output = print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i]+ '\n\n Please use the device on the ' + date_and_time_show[0:10] + ' at ' + date_and_time_show[11:] + ' Uhr because it cost you only ' + str(price) + ' €.\n') 
+                date_and_time_show = date_and_time.strftime(format = "%d.%m.%Y %H:%M")
+                date_and_time_price = date_and_time.strftime(format = "%Y-%m-%d %H:%M:%S")
+                price = price.filter(like=date_and_time_price, axis=0)['Price_at_H+0'].iloc[0]
+                output = print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i]+ '\n\n Please use the device on the ' + date_and_time_show[0:10] + ' at ' + date_and_time_show[11:] + ' Uhr because it cost you only ' + str(price) + ' €.\n')
                 if (recommendations_table.no_recommend_flag_activity.iloc[i]==0 and recommendations_table.no_recommend_flag_usage.iloc[i]==0) == True:
                     return output
                 else:
@@ -1086,20 +1300,22 @@ class Recommendation_Agent:
 # Performance Evaluation Agent
 # ===============================================================================================
 class Performance_Evaluation_Agent:
-    def __init__(self, DATA_PATH, model_type, config, load_data=True, load_files=None):
+    def __init__(self, DATA_PATH, model_type, config, load_data=True, load_files=None, weather_sel=False):
         import agents
         from helper_functions import Helper
         import pandas as pd
 
         helper = Helper()
-        
+
         self.model_type = model_type
         self.config = config
-       
-        self.preparation = (agents.Preparation_Agent(helper.load_household(DATA_PATH, config["data"]["household"]))
-            if load_data
-            else None
-        )
+        self.weather_sel = weather_sel
+        house_df = helper.load_household(DATA_PATH, config["data"]["household"], weather_sel=self.weather_sel)
+        if load_data:
+            self.preparation = agents.Preparation_Agent(house_df)
+        else:
+            self.preparation = agents.Preparation_Agent(None)
+
         self.price = (
             agents.Price_Agent(helper.create_day_ahead_prices_df(DATA_PATH, "Day-ahead Prices_201501010000-201601010000.csv"))
             if load_data
@@ -1108,15 +1324,15 @@ class Performance_Evaluation_Agent:
         self.activity = None
         self.load = None
         for device in self.config["user_input"]["shiftable_devices"]:
-            name = ("usage_"+ device.replace(" ", "_").replace("(", "").replace(")", "").lower())
+            name = ("usage_" + device.replace(" ", "_").replace("(", "").replace(")", "").lower())
             exec(f"self.{name} = None")
         self.recommendation = None
         self.df = {}
         self.output = {}
         self.errors = {}
-        self.agent_scores = {} 
+        self.agent_scores = {}
         self.cold_start_scores = {}
-        #self.true_loads = None
+        # self.true_loads = None
         self.results = {}
         self.cold_start_days = pd.DataFrame()
         if load_files != None:
@@ -1137,7 +1353,7 @@ class Performance_Evaluation_Agent:
         }
 
         *_, name, ftype = filename.split(".")
-        name = name[name.rfind("_") + 1 :]
+        name = name[name.rfind("_") + 1:]
         obj = eval(commands[ftype])
         self[name] = obj
 
@@ -1161,11 +1377,11 @@ class Performance_Evaluation_Agent:
         # storing the agents' output
         if self.output != {}:
             pickle.dump(self.output, open(EXPORT_PATH + str(self.config["data"]["household"]) + "_output.pkl", "wb"))
-            
+
         # storing the results
         if self.results != {}:
             pickle.dump(self.results, open(EXPORT_PATH + str(self.config["data"]["household"]) + "_results.pkl", "wb"))
-            
+
     def __getitem__(self, item):
         return eval(f"self.{item}")
 
@@ -1174,23 +1390,22 @@ class Performance_Evaluation_Agent:
 
     def _format_time(self, seconds):
         return "{:02.0f}".format(seconds // 60) + ":" + "{:02.0f}".format(seconds % 60)
-    
+
     def _get_agent_names(self):
         devices = self.config["user_input"]["shiftable_devices"]
         names = ["activity", "load"] + ["usage_"+ str(device).replace(" ", "_").replace("(", "").replace(")", "").lower() for device in devices]
         return names
 
-    
     # creating the default configuration
     # -------------------------------------------------------------------------------------------
-    def get_default_config(self, agents):
+    def get_default_config(self, agents, weather_sel=False):
         if type(agents) != list:
             agents = [agents]
-        
+
         agents = [agent.lower() for agent in agents]
         for agent in agents:
-            exec(f"self._get_default_{agent}_config()")     
-            
+            exec(f"self._get_default_{agent}_config()")
+
     def _get_default_preparation_config(self):
         from copy import deepcopy
 
@@ -1233,7 +1448,7 @@ class Performance_Evaluation_Agent:
 
     def _get_default_activity_config(self):
         from copy import deepcopy
-        
+
         if (self.activity == None):
             self.init_agents()
         self._get_dates()
@@ -1245,20 +1460,20 @@ class Performance_Evaluation_Agent:
                 "target": "activity",
             },
         }
-        
+
     def _get_default_load_config(self):
         from copy import deepcopy
-        
+
         if (self.load == None):
             self.init_agents()
         self._get_dates()
         self.config["load"] = {
             "shiftable_devices": deepcopy(self.config["user_input"]["shiftable_devices"])
         }
-        
+
     def _get_default_usage_config(self):
         from copy import deepcopy
-        
+
         if (self.activity == None) | (self.load == None):
             self.init_agents()
         self._get_dates()
@@ -1267,10 +1482,10 @@ class Performance_Evaluation_Agent:
             "train_start": deepcopy(self.config["data"]["start_dates"]["usage"]),
         }
         for device in self.config["user_input"]["shiftable_devices"]:
-            name = ("usage_"+ device.replace(" ", "_").replace("(", "").replace(")", "").lower())
+            name = ("usage_" + device.replace(" ", "_").replace("(", "").replace(")", "").lower())
             self.config[name] = self.config["usage"]
             self.config["data"]["start_dates"][name] = self.config["data"]["start_dates"]["usage"]
-            
+
     # extracting the available dates in the data
     def get_first_date(self, df):
         import pandas as pd
@@ -1310,9 +1525,9 @@ class Performance_Evaluation_Agent:
         # converting single agent to list
         if type(agents) != list:
             agents = [agents]
- 
+
         agents = [agent.lower() for agent in agents]
-        
+
         if 'preparation' in agents:
             self._prepare(**kwargs)
         if 'activity' in agents:
@@ -1325,7 +1540,7 @@ class Performance_Evaluation_Agent:
             self._pipeline_activity_usage_load('load', **kwargs)
         if 'recommendation' in agents:
             self._get_recommendations(**kwargs)
-            
+
     def init_agents(self):
         import agents
 
@@ -1335,7 +1550,7 @@ class Performance_Evaluation_Agent:
 
         # initialize usage agents for the shiftable devices: agent = usage_name
         for device in self.config["user_input"]["shiftable_devices"]:
-            name = ("usage_"+ device.replace(" ", "_").replace("(", "").replace(")", "").lower())
+            name = ("usage_" + device.replace(" ", "_").replace("(", "").replace(")", "").lower())
             exec(f'self.{name} = Usage_Agent(self.df["usage"], "{device}")')
             self.df[name] = self.df["usage"]
 
@@ -1346,7 +1561,7 @@ class Performance_Evaluation_Agent:
             self.price.input,
             self.config["user_input"]["shiftable_devices"]
         )
-            
+
     def _prepare(self, agent="all"):
         lines = {
             "activity": 'self.df["activity"] = self.preparation.pipeline_activity(self.preparation.input, self.config["preparation"]["activity"])',
@@ -1432,14 +1647,13 @@ class Performance_Evaluation_Agent:
 
         # merging the recommendations into one dataframe
         df = list(self.output["recommendation"].values())[0]
-      
+
         for idx in range(1, len(self.output["recommendation"].values())):
-            df = df.append(list(self.output["recommendation"].values())[idx]) 
+            df = df.append(list(self.output["recommendation"].values())[idx])
         df.set_index("recommendation_date", inplace=True)
         self.output["recommendation"] = df
         clear_output()
 
-        
     # individual agent scores
     # -------------------------------------------------------------------------------------------
     def get_agent_scores(self):
@@ -1451,7 +1665,7 @@ class Performance_Evaluation_Agent:
         agents = self._get_agent_names()
         for agent in agents:
             agent_type = agent.split('_')[0]
-    
+
             if agent_type == 'activity':
                 _, auc_test, _ = self[agent].evaluate(self[agent].input, **self.config[agent])
                 scores['activity_auc'] = auc_test
@@ -1465,7 +1679,7 @@ class Performance_Evaluation_Agent:
                     scores['load_mse'] = self.load.evaluate(**self.config['load'])
         self.agent_scores = scores
         return scores
-    
+
     def agent_scores_to_summary(self, scores='default'):
         import pandas as pd
 
@@ -1480,40 +1694,39 @@ class Performance_Evaluation_Agent:
         household_id = self.config['data']['household']
         devices = self.config['user_input']['shiftable_devices']
 
-        # activity 
+        # activity
         summary['activity_auc'].loc[household_id, '-'] = scores['activity_auc']
         # usage
         i = 0
         for device in devices:
             summary['usage_auc'].loc[household_id, i] = scores['usage_auc'][device]
             i += 1
-        #load
+        # load
         i = 0
         for device in devices:
             summary['load_mse'].loc[household_id, i] = scores['load_mse'][device]
             i += 1
-        
+
         summary['activity_auc'].index.name = 'household'
         summary['usage_auc'].index.name = 'household'
         summary['load_mse'].index.name = 'household'
         summary['usage_auc'].columns.name = 'device'
         summary['load_mse'].columns.name = 'device'
         return summary
-    
-    
+
     # cold start: predict on all data
     # -------------------------------------------------------------------------------------------
     def predict_all(self, agent, **kwargs):
         agent_type = agent.split("_")[0]
         return eval(f"self._predict_all_{agent_type}(agent, **kwargs)")
-    
+
     def _predict_all_load(self, agent, device):
         y_hat = {
             date: profiles.loc[device, :]
             for date, profiles in self.output[agent].items()
         }
         return y_hat
-    
+
     def _predict_all_activity(self, agent):
         return self._predict_all_activity_usage(agent)
 
@@ -1566,7 +1779,6 @@ class Performance_Evaluation_Agent:
                 self.errors["evaluation"][agent][date] = type(e).__name__
         return y_hat
 
-
     # cold start: calculate cold start scores
     # -------------------------------------------------------------------------------------------
     def get_cold_start_scores(self, fn: dict = "default"):
@@ -1574,7 +1786,7 @@ class Performance_Evaluation_Agent:
 
         scores = {}
         fn = {} if fn == "default" else fn
-        
+
         # activity-agent
         scores["activity"] = self._get_cold_start_score("activity", fn=fn.get("activity", "default"))
         clear_output()
@@ -1587,7 +1799,7 @@ class Performance_Evaluation_Agent:
             scores["load_" + name] = self._get_cold_start_score("load", fn=fn.get("load", "default"), device=device)
             clear_output()
         self.cold_start_scores = scores
-    
+
     def _get_cold_start_score(self, agent, fn="default", **kwargs):
         import sklearn.metrics
         import numpy as np
@@ -1636,7 +1848,7 @@ class Performance_Evaluation_Agent:
         scores_df.index = scores_df.index.map(np.datetime64)
         scores_df = scores_df[cols].sort_index()
         return scores_df
-    
+
     def get_cold_start_days(self, tolerance_values):
         import pandas as pd
 
@@ -1661,20 +1873,19 @@ class Performance_Evaluation_Agent:
                     day += 1
                     tolerance_value = eval(tolerance_fn[agent_type])
                     if agent_type == "load":
-                        done = all(scores_df[agent].values[day - 1 :] < tolerance_value)
+                        done = all(scores_df[agent].values[day - 1:] < tolerance_value)
                     else:
-                        done = all(scores_df[agent].values[day - 1 :] > tolerance_value)
+                        done = all(scores_df[agent].values[day - 1:] > tolerance_value)
                 self.cold_start_days.loc[tolerance[agent_type], agent] = day
         # framework cold start days
         self.cold_start_days['framework'] = self.cold_start_days.max(axis=1)
-    
-    
+
     def cold_start_to_summary(self, tolerance_values='all'):
         import pandas as pd
-        
+
         if tolerance_values == 'all':
             tolerance_values = list(self.cold_start_days.index)
-        
+
         household_id = self.config['data']['household']
         devices = self.config['user_input']['shiftable_devices']
 
@@ -1702,7 +1913,7 @@ class Performance_Evaluation_Agent:
             summary['load'][i] = {}
             summary['load'][i][household_id] = self.cold_start_days[name][tolerance_values].astype(int).to_list()
             i += 1
-    
+
         # framework
         summary['framework']['-'] = {}  # '-': placeholder for device
         summary['framework']['-'][household_id] = self.cold_start_days['framework'][tolerance_values].astype(int).to_list()
@@ -1713,7 +1924,7 @@ class Performance_Evaluation_Agent:
             summary[key].columns.name = 'device'
             summary[key].index.name = 'household'
         return summary
-    
+
     # cold start: visualizations
     # -------------------------------------------------------------------------------------------
     def _plot_axs(self, axs, y, x=None, legend=None, **kwargs):
@@ -1721,7 +1932,7 @@ class Performance_Evaluation_Agent:
         axs.set(**kwargs)
         axs.legend(legend) if legend != None else None
 
-    def visualize_cold_start(self, metrics_name: dict, tolerance: dict=None, figsize=(18, 5)):
+    def visualize_cold_start(self, metrics_name: dict, tolerance: dict = None, figsize=(18, 5)):
         import matplotlib.pyplot as plt
 
         scores_df = self.cold_start_scores_to_df()
@@ -1735,7 +1946,7 @@ class Performance_Evaluation_Agent:
             title=f"[activity] {metrics_name['activity']}",
         )
         legend = ['activity']
-        if tolerance != None: 
+        if tolerance != None:
             tolerance_value = scores_df["activity"].max() * (1 - tolerance["activity"])
             color = axs[0].lines[-1].get_color()
             axs[0].plot([tolerance_value] * scores_df.shape[0], "--", c=color)
@@ -1778,7 +1989,6 @@ class Performance_Evaluation_Agent:
         axs[2].legend(legend)
         axs[2].set_xlabel("days")
 
-    
     # evaluation: calculate costs per device run
     # -------------------------------------------------------------------------------------------
     def calculate_cost(self, date, hour, load):
@@ -1854,7 +2064,6 @@ class Performance_Evaluation_Agent:
             else:
                 raise ke
 
-
     # evaluation: performance metrics
     # -------------------------------------------------------------------------------------------
     def evaluate(self, activity_threshold, usage_threshold):
@@ -1867,7 +2076,7 @@ class Performance_Evaluation_Agent:
         import numpy as np
 
         df = self.output["recommendation"].copy()
-        
+
         # usage and activity target
         df["usage_true"] = df.apply(lambda row: self._get_usage(row["device"], row.name), axis=1)
         df["activity_true"] = df.apply(lambda row: self._get_activity(row.name, row["recommendation"]), axis=1)
@@ -1924,24 +2133,23 @@ class Performance_Evaluation_Agent:
             for name, result in self.results.items()
         }
         return pd.DataFrame.from_dict(summary, orient="index")
-    
 
     # evaluation: grid search and sensitivity
     # -------------------------------------------------------------------------------------------
     def grid_search(self, activity_thresholds, usage_thresholds):
         import itertools
         from tqdm import tqdm
-        
-        # updating the config 
+
+        # updating the config
         try:
             self.config['evaluation']
         except:
             self.config['evaluation'] = {}
-        
+
         self.config['evaluation']['grid_search'] = {}
         self.config['evaluation']['grid_search']['activity_thresholds'] = list(activity_thresholds)
         self.config['evaluation']['grid_search']['usage_thresholds'] = list(usage_thresholds)
-        
+
         # testing candidate thresholds
         iterator = itertools.product(activity_thresholds, usage_thresholds)
         for thresholds in tqdm(list(iterator)):
@@ -1962,7 +2170,7 @@ class Performance_Evaluation_Agent:
         sensitivity.index.name = "activity_threshold"
         sensitivity.columns.name = "usage_threshold"
         return sensitivity
-    
+
     def get_optimal_thresholds(self):
         df = self.results_to_summary()
         result = df.sort_values(by='total_savings').iloc[-1, :]
@@ -1971,19 +2179,19 @@ class Performance_Evaluation_Agent:
         thresholds = {f"{threshold}_threshold": value for threshold, value in thresholds}
         self.config['evaluation']['grid_search']['optimal_thresholds'] = thresholds
         return thresholds
-        
+
     def thresholds_to_index(self, activity_threshold='optimal', usage_threshold='optimal'):
         if activity_threshold == 'optimal':
             activity_threshold = self.config['evaluation']['grid_search']['optimal_thresholds']['activity_threshold']
         if usage_threshold == 'optimal':
             usage_threshold = self.config['evaluation']['grid_search']['optimal_thresholds']['usage_threshold']
         return f"activity: {activity_threshold}; usage: {usage_threshold}"
-    
+
     def optimal_result_to_summary(self):
         import pandas as pd
         optimal_thresholds = self.get_optimal_thresholds()
         optimal_thresholds_index = self.thresholds_to_index()
-        result = self.results_to_summary().loc[optimal_thresholds_index,:]
+        result = self.results_to_summary().loc[optimal_thresholds_index, :]
         result = result.append(pd.Series(optimal_thresholds))
         result.name = self.config['data']['household']
         return result
