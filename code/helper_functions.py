@@ -34,7 +34,11 @@ class Helper:
         readme = self.load_txt(filename)
         temp = readme[readme.find('\nHouse'):]
 
+<<<<<<< HEAD
         for house in range(1, 2):
+=======
+        for house in range(1,10):
+>>>>>>> 3ecc0e53548193a17e3953d1065cb937c4555a07
             cols = {}
             temp = readme[readme.find('\nHouse '+str(house)):]
     
@@ -50,7 +54,11 @@ class Helper:
 
     def load_household(self, REFIT_dir, house_id):
 
+<<<<<<< HEAD
         data_sets = {id:f'CLEAN_House{id}.csv' for id in range(1,2)}
+=======
+        data_sets = {id:f'CLEAN_House{id}.csv' for id in range(1,5)}
+>>>>>>> 3ecc0e53548193a17e3953d1065cb937c4555a07
         filename = REFIT_dir + data_sets[house_id]
 
         readme = REFIT_dir + 'REFIT_Readme.txt'
