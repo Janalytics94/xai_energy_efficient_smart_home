@@ -1599,20 +1599,32 @@ class Performance_Evaluation_Agent:
 
         # pipeline funtion
         start = time.time() if verbose >= 1 else None
+        data = {'Agent': [],
+                'Date': [],
+                'Time': [],
+                'Prediction': []}
+        i = 0
+        output_df = pd.DataFrame(data)
         for date in dates:
             try:
-                self.output[agent][date] = eval(f'self.{agent}.pipeline(self.{agent}.input, "{date}", **self.config["{agent}"])')
+                self.output[agent][date] = eval(
+                    f'self.{agent}.pipeline(self.{agent}.input, "{date}", **self.config["{agent}"])')
                 # verbose
                 if verbose >= 1:
                     clear_output(wait=True)
                     elapsed = time.time() - start
                     remaining = (elapsed / (len(dates)) * (len(dates) - (dates.index(date) + 1)))
                     print(f"agent:\t\t{agent}")
-                    print(f"progress: \t{dates.index(date)+1}/{len(dates)}")
+                    print(f"progress: \t{dates.index(date) + 1}/{len(dates)}")
                     print(f"time:\t\t[{self._format_time(elapsed)}<{self._format_time(remaining)}]\n")
                     print(self.output[agent][date])
+                #               # quesiton: is this right there or move after except? what happens with index if sth goes wrong?
+                output_df.loc[i] = [agent, date, time, self.output[agent][date]]
+                # h = h+1
             except Exception as e:
                 self.errors[agent][date] = type(e).__name__
+            i = i + 1
+        return output_df
 
     def _get_recommendations(
         self, activity_threshold, usage_threshold, dates: tuple = "all"
