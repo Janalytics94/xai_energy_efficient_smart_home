@@ -49,7 +49,7 @@ class Helper:
 
     def load_household(self, REFIT_dir, house_id, weather_sel=False):
 
-        data_sets = {id:f'CLEAN_House{id}.csv' for id in range(1,2)}
+        data_sets = {id:f'CLEAN_House{id}.csv' for id in range(1,4)}
         filename = REFIT_dir + data_sets[house_id]
 
         readme = REFIT_dir + 'REFIT_Readme.txt'
