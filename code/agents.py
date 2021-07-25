@@ -435,7 +435,7 @@ class Activity_Agent:
         return  AdaBoostClassifier().fit(X, y)
 
     def fit_XGB(self,X,y):
-        return xgb.XGBClassifier(verbosity=0).fit(X, y)
+        return xgb.XGBClassifier(verbosity=0, use_label_encoder=False).fit(X, y) #changed to dismiss warning
 
     def fit(self, X, y, model_type):
         model = None
@@ -495,7 +495,7 @@ class Activity_Agent:
 
     def evaluate(
             self, df, model_type, split_params, predict_start="2014-01-01", predict_end=-1, return_errors=False,
-            weather_sel=False
+            weather_sel=False, xai=True
     ):
         import pandas as pd
         import numpy as np
@@ -519,6 +519,8 @@ class Activity_Agent:
         y_hat_test = []
         auc_train_dict = {}
         auc_test = []
+        SEE_list = []
+        xai_time = []
 
         if weather_sel:
             # Add Weather
@@ -576,16 +578,67 @@ class Activity_Agent:
                     {date: self.auc(y_train, list(y_hat_train.values())[-1])}
                 )
                 y_true += list(y_test)
+
+                #print(X_test)
+                #print(len(X_test))
+                #print(type(X_test))
+
+                if xai:
+                    print('The explainability approaches are being evaluated.')
+                    import time
+                    import lime
+                    from lime import lime_tabular
+
+                    #Lime
+                    start_time = time.time()
+                    #print(start_time)
+                    print('The start time is:' + str(start_time))
+                    # only calculate Lime explainer once and then get explanation for local instance
+                    explainer = lime_tabular.LimeTabularExplainer(training_data=np.array(X_train),
+                                                                  mode="regression",
+                                                                  feature_names=X_train.columns,
+                                                                  categorical_features=[0])
+
+                    #optional to do: only select the instances that are predicted to be 1
+                    #for local in
+                    for local in range(3): #replace 3 with when is works: len(X_test)
+
+                        print(local)
+
+                        exp = explainer.explain_instance(data_row=X_test.iloc[local], predict_fn=model.predict) #
+                        #print(exp)
+                        #print(exp.local_pred)
+                        #difference between
+                        SEE = (exp.local_pred - y_hat_test[local])**2 #instead of local
+                        #print(SEE)
+                        #exp.show_in_notebook(show_table=True)
+
+                        SEE_list += list(SEE)
+                        print(SEE_list)
+
+                    #take time for each day:
+                    end_time = time.time()
+                    difference_time = end_time - start_time
+                    print('The time passed is: ' + str(difference_time))
+                    print(type(difference_time))
+
+                    xai_time.append(difference_time)
+                    print(xai_time)
+
             except Exception as e:
                 errors[date] = e
 
         auc_test = self.auc(y_true, y_hat_test)
         auc_train = np.mean(list(auc_train_dict.values()))
+        MSEE = np.mean(SEE_list)
+        print(MSEE)
+        time_mean = np.mean(xai_time)
+        print(time)
 
         if return_errors:
-            return auc_train, auc_test, auc_train_dict, errors
+            return auc_train, auc_test, auc_train_dict, MSEE, time_mean, errors
         else:
-            return auc_train, auc_test, auc_train_dict
+            return auc_train, auc_test, auc_train_dict, MSEE, time_mean
 
     # pipeline function: predicting user activity
     # -------------------------------------------------------------------------------------------
@@ -874,7 +927,7 @@ class Usage_Agent:
         y_test = df.loc[date, df.columns == self.device + "_usage"]
         return X_train, y_train, X_test, y_test
 
-    
+
     # model training and evaluation
     # -------------------------------------------------------------------------------------------
     def fit_Logit(self, X, y):
@@ -1014,11 +1067,13 @@ class Usage_Agent:
                     {date: self.auc(y_train, list(y_hat_train.values())[-1])}
                 )
                 y_true += list(y_test)
+
             except Exception as e:
                 errors[date] = e
 
         auc_test = self.auc(y_true, y_hat_test)
         auc_train = np.mean(list(auc_train_dict.values()))
+
 
         if return_errors:
             return auc_train, auc_test, auc_train_dict, errors
@@ -1300,7 +1355,7 @@ class Recommendation_Agent:
 # Performance Evaluation Agent
 # ===============================================================================================
 class Performance_Evaluation_Agent:
-    def __init__(self, DATA_PATH, model_type, config, load_data=True, load_files=None, weather_sel=False):
+    def __init__(self, DATA_PATH, model_type, config, load_data=True, load_files=None, weather_sel=False, xai= True):
         import agents
         from helper_functions import Helper
         import pandas as pd
@@ -1310,6 +1365,7 @@ class Performance_Evaluation_Agent:
         self.model_type = model_type
         self.config = config
         self.weather_sel = weather_sel
+        self.xai = xai
         house_df = helper.load_household(DATA_PATH, config["data"]["household"])
         if load_data:
             self.preparation = agents.Preparation_Agent(house_df)
@@ -1659,16 +1715,21 @@ class Performance_Evaluation_Agent:
     def get_agent_scores(self):
         scores = {}
         scores['activity_auc'] = None
+        scores['MSEE'] = {}
+        scores['time'] = {}
         scores['usage_auc'] = {}
         scores['load_mse'] = {}
 
         agents = self._get_agent_names()
         for agent in agents:
             agent_type = agent.split('_')[0]
-
             if agent_type == 'activity':
-                _, auc_test, _ = self[agent].evaluate(self[agent].input, **self.config[agent])
+                _, auc_test, _ , MSEE, time= self[agent].evaluate(self[agent].input, **self.config[agent])
                 scores['activity_auc'] = auc_test
+                scores['MSEE'] = MSEE
+                print(scores)
+                scores['time'] = time
+                print(scores)
             if agent_type == 'usage':
                 _, auc_test, _ = self[agent].evaluate(self[agent].input, **self.config[agent])
                 scores['usage_auc'][self[agent].device] = auc_test
