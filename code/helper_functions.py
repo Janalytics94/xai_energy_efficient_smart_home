@@ -34,7 +34,7 @@ class Helper:
         readme = self.load_txt(filename)
         temp = readme[readme.find('\nHouse'):]
 
-        for house in range(1, 10):
+        for house in range(1, 4):
             cols = {}
             temp = readme[readme.find('\nHouse '+str(house)):]
     
