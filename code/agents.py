@@ -1407,7 +1407,7 @@ class Performance_Evaluation_Agent:
         self.config = config
         self.weather_sel = weather_sel
         self.xai = xai
-        house_df = helper.load_household(DATA_PATH, config["data"]["household"])
+        house_df = helper.load_household(DATA_PATH, config["data"]["household"], weather_sel = weather_sel)
         if load_data:
             self.preparation = agents.Preparation_Agent(house_df)
         else:
