@@ -332,15 +332,20 @@ class Preparation_Agent:
 
         # Add weather possibly
         if "temp" in df.columns:
-            output["temp"] = df["temp"].fillna(method="backfill")
+            output["temp"] = df["temp"]
+            output["temp"].fillna(method="backfill", inplace=True)
         if "dwpt" in df.columns:
-            output["dwpt"] = df["dwpt"].fillna(method="backfill")
+            output["dwpt"] = df["dwpt"]
+            output["dwpt"].fillna(method="backfill", inplace=True)
         if "rhum" in df.columns:
-            output["rhum"] = df["rhum"].fillna(method="backfill")
+            output["rhum"] = df["rhum"]
+            output["rhum"].fillna(method="backfill", inplace=True)
         if "wdir" in df.columns:
-            output["wdir"] = df["wdir"].fillna(method="backfill")
+            output["wdir"] = df["wdir"]
+            output["wdir"].fillna(method="backfill", inplace=True)
         if "wspd" in df.columns:
-            output["wspd"] = df["wspd"].fillna(method="backfill")
+            output["wspd"] = df["wspd"]
+            output["wspd"].fillna(method="backfill", inplace=True)
 
         return output
 
@@ -935,7 +940,7 @@ class Usage_Agent:
 
     # train test split
     # -------------------------------------------------------------------------------------------
-    def train_test_split(self, df, date, train_start="2013-11-01", weather_sel=False):
+    def train_test_split(self, df, date, train_start="2013-11-01"):
         df.columns = df.columns.map(str)
         select_vars = [
             self.device + "_usage",
@@ -960,14 +965,11 @@ class Usage_Agent:
             select_vars.append("wspd")
             df["wspd"] = df["wspd"].fillna(method="backfill")
 
-        # if weather_sel:
-        #     select_vars.extend(["tavg", "tmax", "tmin", "wdir", "wspd"])
-
         df = df[select_vars]
         X_train = df.loc[train_start:date, df.columns != self.device + "_usage"]
         y_train = df.loc[train_start:date, df.columns == self.device + "_usage"]
-        X_test = df.loc[date, df.columns != self.device + "_usage"]
-        y_test = df.loc[date, df.columns == self.device + "_usage"]
+        X_test = df.loc[pd.to_datetime(date), df.columns != self.device + "_usage"]
+        y_test = df.loc[pd.to_datetime(date), df.columns == self.device + "_usage"]
         return X_train, y_train, X_test, y_test
 
     
@@ -1010,8 +1012,12 @@ class Usage_Agent:
     def predict(self, model, X):
         import numpy as np
         import pandas
-
-        X = np.array(X).reshape(-1,3)
+        res = 3
+        cols = ["temp", "dwpt", "rhum", "wdir", "wspd"]
+        for e in cols:
+            if e in X.index:
+                res += 1
+        X = np.array(X).reshape(-1, res)
         if type(model) == sklearn.linear_model.LogisticRegression:
             y_hat = model.predict_proba(X)[:,1]
         elif type(model) == sklearn.neighbors._classification.KNeighborsClassifier:
@@ -1098,7 +1104,7 @@ class Usage_Agent:
             errors = {}
             try:
                 X_train, y_train, X_test, y_test = self.train_test_split(
-                    df, date, train_start, weather_sel=weather_sel
+                    df, date, train_start
                 )
                 # fit model
                 model = self.fit(X_train, y_train, model_type)
@@ -1164,7 +1170,7 @@ class Usage_Agent:
             # df.drop("time", axis=1, inplace=True)
             ################################
 
-        X_train, y_train, X_test, y_test = self.train_test_split(df, date, train_start, weather_sel=weather_sel)
+        X_train, y_train, X_test, y_test = self.train_test_split(df, date, train_start)
         model = self.fit(X_train, y_train, model_type)
         return self.predict(model, X_test)
 
@@ -1499,7 +1505,7 @@ class Performance_Evaluation_Agent:
 
     # creating the default configuration
     # -------------------------------------------------------------------------------------------
-    def get_default_config(self, agents, weather_sel=False):
+    def get_default_config(self, agents):
         if type(agents) != list:
             agents = [agents]
 
