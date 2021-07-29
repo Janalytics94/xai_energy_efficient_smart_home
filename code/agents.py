@@ -951,19 +951,19 @@ class Usage_Agent:
         # Add weather possibly
         if "temp" in df.columns:
             select_vars.append("temp")
-            df["temp"] = df["temp"].fillna(method="backfill")
+            df["temp"].fillna(method="backfill", inplace=True)
         if "dwpt" in df.columns:
             select_vars.append("dwpt")
-            df["dwpt"] = df["dwpt"].fillna(method="backfill")
+            df["dwpt"].fillna(method="backfill", inplace=True)
         if "rhum" in df.columns:
             select_vars.append("rhum")
-            df["rhum"] = df["rhum"].fillna(method="backfill")
+            df["rhum"].fillna(method="backfill", inplace=True)
         if "wdir" in df.columns:
             select_vars.append("wdir")
-            df["wdir"] = df["wdir"].fillna(method="backfill")
+            df["wdir"].fillna(method="backfill", inplace=True)
         if "wspd" in df.columns:
             select_vars.append("wspd")
-            df["wspd"] = df["wspd"].fillna(method="backfill")
+            df["wspd"].fillna(method="backfill", inplace=True)
 
         df = df[select_vars]
         X_train = df.loc[train_start:date, df.columns != self.device + "_usage"]
@@ -1015,8 +1015,12 @@ class Usage_Agent:
         res = 3
         cols = ["temp", "dwpt", "rhum", "wdir", "wspd"]
         for e in cols:
-            if e in X.index:
-                res += 1
+            if isinstance(X, pd.DataFrame):
+                if e in X.columns:
+                    res += 1
+            if isinstance(X, pd.Series):
+                if e in X.index:
+                    res += 1
         X = np.array(X).reshape(-1, res)
         if type(model) == sklearn.linear_model.LogisticRegression:
             y_hat = model.predict_proba(X)[:,1]
