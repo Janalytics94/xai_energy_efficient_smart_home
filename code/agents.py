@@ -596,10 +596,20 @@ class Activity_Agent:
 
                     start_time = time.time()
 
-                    explainer = lime_tabular.LimeTabularExplainer(training_data=np.array(X_train),
-                                                                  mode="regression",
-                                                                  feature_names=X_train.columns,
-                                                                  categorical_features=[0])
+                    if model_type == "xgboost":
+                        booster = model.get_booster()
+
+                        explainer = lime.lime_tabular.LimeTabularExplainer(X_train.values,
+                                                                           feature_names=X_train.columns,
+                                                                           kernel_width=3, verbose=False)
+                        print(explainer)
+
+
+                    else:
+                        explainer = lime_tabular.LimeTabularExplainer(training_data=np.array(X_train),
+                                                                      mode="regression",
+                                                                      feature_names=X_train.columns,
+                                                                      categorical_features=[0])
 
                     # optional to do: only select the instances that are predicted to be 1
                     # for local in
@@ -608,11 +618,16 @@ class Activity_Agent:
 
                         #print('Instance: ' + str(local))
 
-                        exp = explainer.explain_instance(data_row=X_test.iloc[local], predict_fn=model.predict)  #
+                        if model_type == "xgboost":
+                            exp = explainer.explain_instance(X_test.iloc[local, :].values, model.predict_proba)
+                        else:
+                            exp = explainer.explain_instance(data_row=X_test.iloc[local], predict_fn=model.predict)
+
+                        print(exp)
                         SEE = (exp.local_pred - y_hat_test[local]) ** 2  # instead of local
 
                         SEE_list_lime += list(SEE)
-                        #print(SEE_list_lime)
+                        print(SEE_list_lime)
 
                     # take time for each day:
                     end_time = time.time()
@@ -650,6 +665,7 @@ class Activity_Agent:
 
                     elif model_type == "xgboost":
                         explainer = shap.TreeExplainer(model, X_train, model_output='predict_proba')
+                        print(explainer)
                     else:
                         raise InputError("Unknown model type.")
 
@@ -659,11 +675,14 @@ class Activity_Agent:
                     for local in range(3):  # replace 3 with when is works: len(X_test)
 
                         shap_values = explainer.shap_values(
-                            X_test.iloc[local, :])  # hier theoretisch ganzes test set prediction statt for loop möglich
+                            X_test.iloc[local, :])
+                        print(shap_values)
+                        # hier theoretisch ganzes test set prediction statt for loop möglich
                         contribution_to_class_1 = np.array(shap_values).sum(axis=1)[1]  # the red part of the diagram
                         SEE_shap = (base_value + contribution_to_class_1 - y_hat_test[local]) ** 2
 
                         SEE_list_shap.append(SEE_shap)
+                        print(SEE_list_shap)
 
                     # take time for each day:
                     end_time = time.time()
@@ -1475,17 +1494,17 @@ class Performance_Evaluation_Agent:
         import pickle
 
         # storing the current configuration
-        json.dump(self.config, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"])
+        json.dump(self.config, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"]) +'_'
                                           + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_config.json", "w"), indent=4)
 
         # storing the prepared data
         if self.df != {}:
-            pickle.dump(self.df, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"])
+            pickle.dump(self.df, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"]) +'_'
                                          + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_df.pkl", "wb"))
 
         # storing the agents' output
         if self.output != {}:
-            pickle.dump(self.output, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"])
+            pickle.dump(self.output, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"]) +'_'
                                          + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_output.pkl", "wb"))
 
         # storing the results
