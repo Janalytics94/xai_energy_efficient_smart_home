@@ -32,7 +32,6 @@ h5py==3.1.0
 idna==3.2
 imageio==2.9.0
 importlib-metadata==4.6.1
-interpret==0.2.6
 interpret-core==0.2.6
 ipykernel @ file:///tmp/build/80754af9/ipykernel_1596206598566/work/dist/ipykernel-5.3.4-py3-none-any.whl
 ipython @ file:///tmp/build/80754af9/ipython_1617118429768/work
@@ -107,6 +106,7 @@ urllib3==1.26.6
 wcwidth @ file:///tmp/build/80754af9/wcwidth_1593447189090/work
 Werkzeug==2.0.1
 wrapt==1.12.1
+xgboost==1.4.2
 zipp==3.5.0
 zope.event==4.5.0
 zope.interface==5.4.0
