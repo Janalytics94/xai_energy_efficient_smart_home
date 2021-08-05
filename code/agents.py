@@ -522,13 +522,14 @@ class Activity_Agent:
         y_true = []
         y_hat_train = {}
         y_hat_test = []
+        y_hat_lime = []
+        y_hat_shap = []
         auc_train_dict = {}
         auc_test = []
-        SEE_list_lime = []
         xai_time_lime = []
-
-        SEE_list_shap = []
         xai_time_shap = []
+
+        predictions_list = []
 
         if weather_sel:
             # Add Weather
@@ -579,7 +580,7 @@ class Activity_Agent:
                 # fit model
                 model = self.fit(X_train, y_train, model_type)
 
-                # predict
+                # self.predict uses predict_proba i.e. we get probability estimates and not classes
                 y_hat_train.update({date: self.predict(model, X_train)})
                 y_hat_test += list(self.predict(model, X_test))
 
@@ -602,32 +603,36 @@ class Activity_Agent:
                         explainer = lime.lime_tabular.LimeTabularExplainer(X_train.values,
                                                                            feature_names=X_train.columns,
                                                                            kernel_width=3, verbose=False)
-                        print(explainer)
+                        #print(explainer)
 
 
                     else:
                         explainer = lime_tabular.LimeTabularExplainer(training_data=np.array(X_train),
-                                                                      mode="regression",
+                                                                      mode="classification",
                                                                       feature_names=X_train.columns,
                                                                       categorical_features=[0])
 
                     # optional to do: only select the instances that are predicted to be 1
                     # for local in
                     #to do:
-                    for local in range(3):  # replace 3 with when is works: len(X_test)
-
+                    for local in range(2):  # replace 3 with when is works: len(X_test)
+                        # to do: hier weiter
                         #print('Instance: ' + str(local))
-
+                        # still predict_proba since also used in other function: treshold dependent outcome
                         if model_type == "xgboost":
                             exp = explainer.explain_instance(X_test.iloc[local, :].values, model.predict_proba)
                         else:
-                            exp = explainer.explain_instance(data_row=X_test.iloc[local], predict_fn=model.predict)
+                            exp = explainer.explain_instance(data_row=X_test.iloc[local], predict_fn=model.predict_proba)
 
-                        print(exp)
-                        SEE = (exp.local_pred - y_hat_test[local]) ** 2  # instead of local
 
-                        SEE_list_lime += list(SEE)
-                        print(SEE_list_lime)
+                        #print(exp)
+                        #y_hat_lime hier einfach raus und später if >0.5 ==1
+                        y_hat_lime += list(exp.local_pred)
+                        #print(y_hat_lime)
+
+                        #SEE = (exp.local_pred - y_hat_test[local]) ** 2  # instead of local
+                        #SEE_list_lime += list(SEE)
+                        #print(SEE_list_lime)
 
                     # take time for each day:
                     end_time = time.time()
@@ -638,9 +643,6 @@ class Activity_Agent:
                     #print('SHAP: ')
 
                     import shap as shap
-                    from sklearn.feature_extraction.text import TfidfVectorizer
-                    #vectorizer = TfidfVectorizer(min_df=10)
-                    #shap.initjs()
 
                     start_time = time.time()
 
@@ -665,47 +667,70 @@ class Activity_Agent:
 
                     elif model_type == "xgboost":
                         explainer = shap.TreeExplainer(model, X_train, model_output='predict_proba')
-                        print(explainer)
+                        #print(explainer)
                     else:
                         raise InputError("Unknown model type.")
 
                     base_value = explainer.expected_value[1]  # the mean prediction
 
                     #to do:
-                    for local in range(3):  # replace 3 with when is works: len(X_test)
+                    for local in range(2):  # replace 3 with when is works: len(X_test)
 
                         shap_values = explainer.shap_values(
                             X_test.iloc[local, :])
-                        print(shap_values)
                         # hier theoretisch ganzes test set prediction statt for loop möglich
                         contribution_to_class_1 = np.array(shap_values).sum(axis=1)[1]  # the red part of the diagram
-                        SEE_shap = (base_value + contribution_to_class_1 - y_hat_test[local]) ** 2
+                        shap_prediction = base_value + contribution_to_class_1
+                        #print(shap_prediction)
+                        # Prediction from XAI:
+                        y_hat_shap.append(shap_prediction)
+                        #print(y_hat_shap)
 
-                        SEE_list_shap.append(SEE_shap)
-                        print(SEE_list_shap)
 
                     # take time for each day:
                     end_time = time.time()
                     difference_time = end_time - start_time
                     xai_time_shap.append(difference_time)
+                    #print(xai_time_shap)
 
             except Exception as e:
                 errors[date] = e
 
         auc_test = self.auc(y_true, y_hat_test)
         auc_train = np.mean(list(auc_train_dict.values()))
-        MSEE_lime = np.mean(SEE_list_lime)
-        MSEE_shap = np.mean(SEE_list_shap)
-        print('MSEE for Lime: ' + str(MSEE_lime))
-        print('MSEE for SHAP: ' + str(MSEE_shap))
+        #print(len(y_true))
+        predictions_list.append(y_true)
+        #print(len(y_hat_test))
+        predictions_list.append(y_hat_test)
+        #print(len(y_hat_lime))
+        predictions_list.append(y_hat_lime)
+        #print(len(y_hat_shap))
+        predictions_list.append(y_hat_shap)
+        #print(predictions_list)
+        # Accuracy
+        #
+        # to do: cchange since is is probability atm
+        # maybe directly calculate MSEE at the end with columns to make it faster and s.t. time is more true?
+        #auc_test_lime = self.auc(y_true, y_hat_lime)
+        #auc_test_shao = self.auc(y_true, y_hat_shap)
+        #print(auc_test_lime)
+        #auc_test_shap = self.auc(y_true, y_hat_shap)
+        # Fidelity
+        #MSEE_lime = np.mean(SEE_list_lime)
+        #MSEE_shap = np.mean(SEE_list_shap)
+        #print('MSEE for Lime: ' + str(MSEE_lime))
+        #print('MSEE for SHAP: ' + str(MSEE_shap))
+
+        # Efficiency
         time_mean_lime = np.mean(xai_time_lime)
         time_mean_shap = np.mean(xai_time_shap)
         print('Mean time nedded by appraoches: ' + str(time_mean_lime) + str(time_mean_shap))
 
         if return_errors:
-            return auc_train, auc_test, auc_train_dict, MSEE_lime, time_mean_lime, MSEE_shap, time_mean_shap, errors
+            return auc_train, auc_test, auc_train_dict, time_mean_lime, time_mean_shap, predictions_list, errors
         else:
-            return auc_train, auc_test, auc_train_dict, MSEE_lime, time_mean_lime, MSEE_shap, time_mean_shap,
+            return auc_train, auc_test, auc_train_dict, time_mean_lime, time_mean_shap, predictions_list
+
 
     # pipeline function: predicting user activity
     # -------------------------------------------------------------------------------------------
@@ -1457,6 +1482,7 @@ class Performance_Evaluation_Agent:
         self.output = {}
         self.errors = {}
         self.agent_scores = {}
+        self.agent_predictions_list = {}
         self.cold_start_scores = {}
         # self.true_loads = None
         self.results = {}
@@ -1511,6 +1537,15 @@ class Performance_Evaluation_Agent:
         if self.results != {}:
             pickle.dump(self.results, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"])
                                            + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_results.pkl", "wb"))
+
+        # storing the results
+        if self.agent_scores != {}:
+            pickle.dump(self.agent_scores, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"])
+                                          + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_scores.pkl", "wb"))
+
+        if self.agent_predictions_list != {}:
+            pickle.dump(self.agent_predictions_list, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"])
+                                          + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_predictions.pkl", "wb"))
 
     def __getitem__(self, item):
         return eval(f"self.{item}")
@@ -1790,25 +1825,24 @@ class Performance_Evaluation_Agent:
         self.xai =xai
         scores = {}
         scores['activity_auc'] = None
-        scores['MSEE_lime'] = {}
-        scores['MSEE_shap'] = {}
         scores['time_mean_lime'] = {}
         scores['time_mean_shap'] = {}
         scores['usage_auc'] = {}
         scores['load_mse'] = {}
+
+        predictions = []
 
         agents = self._get_agent_names()
         for agent in agents:
             agent_type = agent.split('_')[0]
 
             if agent_type == 'activity':
-                _, auc_test, _, MSEE_lime, time_mean_lime, MSEE_shap, time_mean_shap = self[agent].evaluate(self[agent].input, **self.config[agent], xai=self.xai)
+                _, auc_test, _, time_mean_lime, time_mean_shap, predictions_list = self[agent].evaluate(self[agent].input, **self.config[agent], xai=self.xai)
                 scores['activity_auc'] = auc_test
-                scores['MSEE_lime'] = MSEE_lime
-                scores['MSEE_shap'] = MSEE_shap
                 scores['time_mean_lime'] = time_mean_lime
                 scores['time_mean_shap'] = time_mean_shap
                 print(scores)
+                print(predictions_list)
             if agent_type == 'usage':
                 _, auc_test, _ = self[agent].evaluate(self[agent].input, **self.config[agent])
                 scores['usage_auc'][self[agent].device] = auc_test
@@ -1818,7 +1852,8 @@ class Performance_Evaluation_Agent:
                 except KeyError:
                     scores['load_mse'] = self.load.evaluate(**self.config['load'])
         self.agent_scores = scores
-        return scores
+        self.agent_predictions_list = predictions_list
+        return scores, predictions_list
 
     def agent_scores_to_summary(self, scores='default'):
         import pandas as pd
@@ -1853,6 +1888,70 @@ class Performance_Evaluation_Agent:
         summary['usage_auc'].columns.name = 'device'
         summary['load_mse'].columns.name = 'device'
         return summary
+
+    def predictions_to_xai_metrics(self, predictions, activity_threshold, usage_threshold):
+        import numpy as np
+        import sklearn.metrics
+
+        y_true = np.array(predictions[0])
+        y_hat_test = np.array(predictions[1])
+        y_hat_lime = np.array(predictions[2])
+        y_hat_shap = np.array(predictions[3])
+
+        self.activity_threshold = activity_threshold
+        self.usage_threshold = usage_threshold
+
+        self.y_true = y_true
+        self.y_hat_test = y_hat_test
+        self.y_hat_lime = y_hat_lime
+        self.y_hat_shap = y_hat_shap
+
+        #turn y_hat test into binary
+        self.y_hat_test_bin = np.where(y_hat_test > activity_threshold, 1, 0)
+        self.y_hat_lime_bin = np.where(y_hat_lime > activity_threshold, 1, 0)
+        self.y_hat_shap_bin = np.where(y_hat_shap > activity_threshold, 1, 0)
+
+
+        xai_scores = {}
+        xai_scores['activity_lime_auc_true'] = None
+        xai_scores['activity_shap_auc_true'] = {}
+        xai_scores['activity_lime_auc_pred'] = {}
+        xai_scores['activity_shap_auc_pred'] = {}
+        xai_scores['activity_lime_MSEE'] = {}
+        xai_scores['activity_shap_MSEE'] = {}
+
+        # AUC of true - xai prediction
+        xai_scores['activity_lime_auc_true'] = sklearn.metrics.roc_auc_score(y_true[:len(y_hat_lime)], y_hat_lime)
+        xai_scores['activity_shap_auc_true'] = sklearn.metrics.roc_auc_score(y_true[:len(y_hat_shap)], y_hat_shap)
+
+        # AUC of predicted probabilities - xai prediction
+        # to do: check if correct because kind of bad?
+        xai_scores['activity_lime_auc_pred'] = sklearn.metrics.roc_auc_score(self.y_hat_test_bin[:len(y_hat_lime)], self.y_hat_lime_bin)
+        xai_scores['activity_shap_auc_pred'] = sklearn.metrics.roc_auc_score(self.y_hat_test_bin[:len(y_hat_shap)], self.y_hat_shap_bin)
+
+        # accuracy
+        xai_scores['activity_lime_acc_pred'] = sklearn.metrics.accuracy_score(self.y_hat_test_bin[:len(y_hat_lime)],
+                                                                             self.y_hat_lime_bin)
+        xai_scores['activity_shap_acc_pred'] = sklearn.metrics.accuracy_score(self.y_hat_test_bin[:len(y_hat_shap)],
+                                                                             self.y_hat_shap_bin)
+
+        # precision
+        xai_scores['activity_lime_precision_pred'] = sklearn.metrics.precision_score(self.y_hat_test_bin[:len(y_hat_lime)],
+                                                                             self.y_hat_lime_bin)
+        xai_scores['activity_shap_precision_pred'] = sklearn.metrics.precision_score(self.y_hat_test_bin[:len(y_hat_shap)],
+                                                                             self.y_hat_shap_bin)
+
+        # recall
+        xai_scores['activity_lime_recall_pred'] = sklearn.metrics.recall_score(self.y_hat_test_bin[:len(y_hat_lime)],
+                                                                             self.y_hat_lime_bin)
+        xai_scores['activity_shap_recall_pred'] = sklearn.metrics.recall_score(self.y_hat_test_bin[:len(y_hat_shap)],
+                                                                             self.y_hat_shap_bin)
+        # MSEE
+        xai_scores['activity_lime_MSEE'] = np.mean(y_hat_lime - y_hat_test[:len(y_hat_lime)]) ** 2
+        xai_scores['activity_shap_MSEE'] = np.mean(y_hat_shap - y_hat_test[:len(y_hat_shap)]) ** 2
+
+        self.xai_scores = xai_scores
+        return xai_scores
 
     # cold start: predict on all data
     # -------------------------------------------------------------------------------------------
