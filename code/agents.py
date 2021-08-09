@@ -441,6 +441,10 @@ class Activity_Agent:
 
     def fit_XGB(self, X, y):
         return xgb.XGBClassifier(verbosity=0, use_label_encoder=False).fit(X, y)  # changed to dismiss warning
+    # Glasbox model which does not neead to be explained by lime and shap, Global explainability is possible
+    def fit_EBM(self, X, y):
+        from interpret.glassbox import ExplainableBoostingClassifier 
+        return ExplainableBoostingClassifier().fit(X, y)   
 
     def fit(self, X, y, model_type):
         model = None
@@ -454,6 +458,8 @@ class Activity_Agent:
             model = self.fit_random_forest(X, y)
         elif model_type == "xgboost":
             model = self.fit_XGB(X, y)
+        elif model_type == "ebm":
+            model = self.fit_EBM(X,y)    
         else:
             raise InputError("Unknown model type.")
         return model
@@ -476,6 +482,9 @@ class Activity_Agent:
             y_hat = model.predict_proba(X)[:,1]
 
         elif type(model) == xgboost.sklearn.XGBClassifier:
+            y_hat = model.predict_proba(X)[:,1]
+
+        elif type(model) == interpret.glassbox.ebm.ebm.ExplainableBoostingClassifier:
             y_hat = model.predict_proba(X)[:,1]
 
         else:
@@ -1037,6 +1046,11 @@ class Usage_Agent:
     def fit_XGB(self,X,y):
         return xgb.XGBClassifier().fit(X,y)
 
+    # Glasbox model which does not neead to be explained by lime and shap, Global explainability is possible
+    def fit_EBM(self, X, y):
+        from interpret.glassbox import ExplainableBoostingClassifier 
+        return ExplainableBoostingClassifier().fit(X, y)   
+
     def fit(self, X, y, model_type):
         model = None
         if model_type == "logit":
@@ -1049,6 +1063,8 @@ class Usage_Agent:
             model = self.fit_random_forest(X,y)
         elif model_type == "xgboost":
            model = self.fit_XGB(X,y)
+        elif model_type == "ebm":
+            model = self.fit_EBM(X,y)   
         else:
             raise InputError("Unknown model type.")
         return model
@@ -1076,6 +1092,9 @@ class Usage_Agent:
             y_hat = model.predict_proba(X)[:,1]
         elif type(model) == xgboost.sklearn.XGBClassifier:
             y_hat = model.predict_proba(X)[:,1]
+        elif type(model) == interpret.glassbox.ebm.ebm.ExplainableBoostingClassifier:
+            y_hat = model.predict_proba(X)[:,1]
+  
         else:
             raise InputError("Unknown model type.")
 
