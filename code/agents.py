@@ -1088,7 +1088,7 @@ class Usage_Agent:
 
     def evaluate(
             self, df, model_type, train_start, predict_start="2014-01-01", predict_end=-1, return_errors=False,
-            weather_sel=False
+            weather_sel=False, xai=False
     ):
         import pandas as pd
         import numpy as np
@@ -1106,8 +1106,14 @@ class Usage_Agent:
         y_true = []
         y_hat_train = {}
         y_hat_test = []
+        y_hat_lime = []
+        y_hat_shap = []
         auc_train_dict = {}
         auc_test = []
+        xai_time_lime = []
+        xai_time_shap = []
+        
+        predictions_list = []
 
         if weather_sel:
             # Add Weather
@@ -1147,7 +1153,10 @@ class Usage_Agent:
             df = df.set_index("time")
             # df.drop("time", axis=1, inplace=True)
             ################################
+        if xai:
+            print('The explainability approaches are being evaluated for model: ' + str(model_type))
 
+        
         for date in tqdm(dates.index):
             errors = {}
             try:
@@ -1164,16 +1173,121 @@ class Usage_Agent:
                     {date: self.auc(y_train, list(y_hat_train.values())[-1])}
                 )
                 y_true += list(y_test)
+                
+                if xai:
+                    import time
+                    import lime
+                    from lime import lime_tabular
+
+                    start_time = time.time()
+
+                    if model_type == "xgboost":
+                        booster = model.get_booster()
+
+                        explainer = lime.lime_tabular.LimeTabularExplainer(X_train.values,
+                                                                           feature_names=X_train.columns,
+                                                                           kernel_width=3, verbose=False)
+                        #print(explainer)
+
+
+                    else:
+                        explainer = lime_tabular.LimeTabularExplainer(training_data=np.array(X_train),
+                                                                      mode="classification",
+                                                                      feature_names=X_train.columns,
+                                                                      categorical_features=[0])
+
+                    # optional to do: only select the instances that are predicted to be 1
+                    # for local in
+                    #to do:
+                    for local in range(1):  # replace 3 with when is works: len(X_test)
+                        # to do: hier weiter
+                        #print('Instance: ' + str(local))
+                        # still predict_proba since also used in other function: treshold dependent outcome
+                        if model_type == "xgboost":
+                            exp = explainer.explain_instance(X_test[local, :], model.predict_proba)
+                        else:
+                            exp = explainer.explain_instance(data_row=X_test[local], predict_fn=model.predict_proba)
+
+                        y_hat_lime += list(exp.local_pred)
+
+                    # take time for each day:
+                    end_time = time.time()
+                    difference_time = end_time - start_time
+
+                    xai_time_lime.append(difference_time)
+
+                    #print('SHAP: ')
+
+                    import shap as shap
+
+                    start_time = time.time()
+
+                    # to do: add for all models
+                    if model_type == "logit":
+                        #option: apply kmeans first for faster computation
+                        X_train_summary = shap.kmeans(X_train, 10)
+                        explainer = shap.KernelExplainer(model.predict_proba, X_train_summary)
+                        #without kmeans:
+                        #explainer = shap.KernelExplainer(model.predict_proba, X_train)
+
+                    elif model_type == "ada":
+                        X_train_summary = shap.kmeans(X_train, 10)
+                        explainer = shap.KernelExplainer(model.predict_proba, X_train_summary)
+
+                    elif model_type == "knn":
+                        X_train_summary = shap.kmeans(X_train, 10)
+                        explainer = shap.KernelExplainer(model.predict_proba, X_train_summary)
+
+                    elif model_type == "random forest":
+                        explainer = shap.TreeExplainer(model, X_train)
+
+                    elif model_type == "xgboost":
+                        explainer = shap.TreeExplainer(model, X_train, model_output='predict_proba')
+                        #print(explainer)
+                    else:
+                        raise InputError("Unknown model type.")
+
+                    base_value = explainer.expected_value[1]  # the mean prediction
+
+                    #to do:
+                    for local in range(1):  # replace 3 with when is works: len(X_test)
+
+                        shap_values = explainer.shap_values(
+                            X_test[local])
+                        # hier theoretisch ganzes test set prediction statt for loop möglich
+                        contribution_to_class_1 = np.array(shap_values).sum(axis=1)[1]  # the red part of the diagram
+                        shap_prediction = base_value + contribution_to_class_1
+                        #print(shap_prediction)
+                        # Prediction from XAI:
+                        y_hat_shap.append(shap_prediction)
+                        #print(y_hat_shap)
+
+
+                    # take time for each day:
+                    end_time = time.time()
+                    difference_time = end_time - start_time
+                    xai_time_shap.append(difference_time)
+                    #print(xai_time_shap)
+                
             except Exception as e:
                 errors[date] = e
 
         auc_test = self.auc(y_true, y_hat_test)
         auc_train = np.mean(list(auc_train_dict.values()))
-
+        predictions_list.append(y_true)
+        predictions_list.append(y_hat_test)
+        predictions_list.append(y_hat_lime)
+        predictions_list.append(y_hat_shap)
+        
+        # Efficiency
+        time_mean_lime = np.mean(xai_time_lime)
+        time_mean_shap = np.mean(xai_time_shap)
+        print('Mean time nedded by appraoches: ' + str(time_mean_lime) + str(time_mean_shap))
+        
         if return_errors:
-            return auc_train, auc_test, auc_train_dict, errors
+            return auc_train, auc_test, auc_train_dict, time_mean_lime, time_mean_shap, predictions_list, errors
         else:
-            return auc_train, auc_test, auc_train_dict
+            return auc_train, auc_test, auc_train_dict, time_mean_lime, time_mean_shap, predictions_list
 
     # pipeline function: predicting device usage
     # -------------------------------------------------------------------------------------------
@@ -1483,6 +1597,7 @@ class Performance_Evaluation_Agent:
         self.errors = {}
         self.agent_scores = {}
         self.agent_predictions_list = {}
+        self.agent_predictions_list_usage = {}
         self.cold_start_scores = {}
         # self.true_loads = None
         self.results = {}
@@ -1535,17 +1650,21 @@ class Performance_Evaluation_Agent:
 
         # storing the results
         if self.results != {}:
-            pickle.dump(self.results, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"])
-                                           + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_results.pkl", "wb"))
+            pickle.dump(self.results, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"]) +'_'
+                                        + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_results.pkl", "wb"))
 
         # storing the results
         if self.agent_scores != {}:
-            pickle.dump(self.agent_scores, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"])
-                                          + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_scores.pkl", "wb"))
+            pickle.dump(self.agent_scores, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"]) +'_'
+                                        + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_scores.pkl", "wb"))
 
         if self.agent_predictions_list != {}:
-            pickle.dump(self.agent_predictions_list, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"])
-                                          + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_predictions.pkl", "wb"))
+            pickle.dump(self.agent_predictions_list, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"]) +'_'
+                                         + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_predictions.pkl", "wb"))
+            
+        if self.agent_predictions_list_usage != {}:
+            pickle.dump(self.agent_predictions_list_usage, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"]) +'_'
+                                        + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_predictions_usage.pkl", "wb"))
 
     def __getitem__(self, item):
         return eval(f"self.{item}")
@@ -1822,15 +1941,15 @@ class Performance_Evaluation_Agent:
     # individual agent scores
     # -------------------------------------------------------------------------------------------
     def get_agent_scores(self, xai=False):
-        self.xai =xai
+        self.xai = xai
         scores = {}
         scores['activity_auc'] = None
         scores['time_mean_lime'] = {}
         scores['time_mean_shap'] = {}
         scores['usage_auc'] = {}
+        scores['time_mean_lime_usage'] = {}
+        scores['time_mean_shap_usage'] = {}
         scores['load_mse'] = {}
-
-        predictions = []
 
         agents = self._get_agent_names()
         for agent in agents:
@@ -1844,8 +1963,12 @@ class Performance_Evaluation_Agent:
                 print(scores)
                 print(predictions_list)
             if agent_type == 'usage':
-                _, auc_test, _ = self[agent].evaluate(self[agent].input, **self.config[agent])
-                scores['usage_auc'][self[agent].device] = auc_test
+                _, auc_test, _, time_mean_lime_usage, time_mean_shap_usage, predictions_list_usage = self[agent].evaluate(self[agent].input, **self.config[agent], xai=self.xai)
+                scores['usage_auc'][self[agent].device] = auc_test 
+                scores['time_mean_lime_usage'] = time_mean_lime_usage
+                scores['time_mean_shap_usage'] = time_mean_shap_usage
+                print(scores)
+                print(predictions_list_usage)
             if agent_type == 'load':
                 try:
                     scores['load_mse'] = self.load.evaluate(**self.config['load'], evaluation=self.output['load'])
@@ -1853,7 +1976,8 @@ class Performance_Evaluation_Agent:
                     scores['load_mse'] = self.load.evaluate(**self.config['load'])
         self.agent_scores = scores
         self.agent_predictions_list = predictions_list
-        return scores, predictions_list
+        self.agent_predictions_list_usage = predictions_list_usage
+        return scores, predictions_list, predictions_list_usage
 
     def agent_scores_to_summary(self, scores='default'):
         import pandas as pd
@@ -1949,6 +2073,70 @@ class Performance_Evaluation_Agent:
         # MSEE
         xai_scores['activity_lime_MSEE'] = np.mean(y_hat_lime - y_hat_test[:len(y_hat_lime)]) ** 2
         xai_scores['activity_shap_MSEE'] = np.mean(y_hat_shap - y_hat_test[:len(y_hat_shap)]) ** 2
+
+        self.xai_scores = xai_scores
+        return xai_scores
+    
+    def predictions_to_xai_metrics_usage(self, predictions, activity_threshold, usage_threshold):
+        import numpy as np
+        import sklearn.metrics
+
+        y_true = np.array(predictions[0])
+        y_hat_test = np.array(predictions[1])
+        y_hat_lime = np.array(predictions[2])
+        y_hat_shap = np.array(predictions[3])
+
+        self.activity_threshold = activity_threshold
+        self.usage_threshold = usage_threshold
+
+        self.y_true = y_true
+        self.y_hat_test = y_hat_test
+        self.y_hat_lime = y_hat_lime
+        self.y_hat_shap = y_hat_shap
+
+        #turn y_hat test into binary
+        self.y_hat_test_bin = np.where(y_hat_test > usage_threshold, 1, 0)
+        self.y_hat_lime_bin = np.where(y_hat_lime > usage_threshold, 1, 0)
+        self.y_hat_shap_bin = np.where(y_hat_shap > usage_threshold, 1, 0)
+
+
+        xai_scores = {}
+        xai_scores['usage_lime_auc_true'] = None
+        xai_scores['usage_shap_auc_true'] = {}
+        xai_scores['usage_lime_auc_pred'] = {}
+        xai_scores['usage_shap_auc_pred'] = {}
+        xai_scores['usage_lime_MSEE'] = {}
+        xai_scores['usage_shap_MSEE'] = {}
+
+        # AUC of true - xai prediction
+        xai_scores['usage_lime_auc_true'] = sklearn.metrics.roc_auc_score(y_true[:len(y_hat_lime)], y_hat_lime)
+        xai_scores['usage_shap_auc_true'] = sklearn.metrics.roc_auc_score(y_true[:len(y_hat_shap)], y_hat_shap)
+
+        # AUC of predicted probabilities - xai prediction
+        # to do: check if correct because kind of bad?
+        xai_scores['usage_lime_auc_pred'] = sklearn.metrics.roc_auc_score(self.y_hat_test_bin[:len(y_hat_lime)], self.y_hat_lime_bin)
+        xai_scores['usage_shap_auc_pred'] = sklearn.metrics.roc_auc_score(self.y_hat_test_bin[:len(y_hat_shap)], self.y_hat_shap_bin)
+
+        # accuracy
+        xai_scores['usage_lime_acc_pred'] = sklearn.metrics.accuracy_score(self.y_hat_test_bin[:len(y_hat_lime)],
+                                                                             self.y_hat_lime_bin)
+        xai_scores['usage_shap_acc_pred'] = sklearn.metrics.accuracy_score(self.y_hat_test_bin[:len(y_hat_shap)],
+                                                                             self.y_hat_shap_bin)
+
+        # precision
+        xai_scores['usage_lime_precision_pred'] = sklearn.metrics.precision_score(self.y_hat_test_bin[:len(y_hat_lime)],
+                                                                             self.y_hat_lime_bin)
+        xai_scores['usage_shap_precision_pred'] = sklearn.metrics.precision_score(self.y_hat_test_bin[:len(y_hat_shap)],
+                                                                             self.y_hat_shap_bin)
+
+        # recall
+        xai_scores['usage_lime_recall_pred'] = sklearn.metrics.recall_score(self.y_hat_test_bin[:len(y_hat_lime)],
+                                                                             self.y_hat_lime_bin)
+        xai_scores['usage_shap_recall_pred'] = sklearn.metrics.recall_score(self.y_hat_test_bin[:len(y_hat_shap)],
+                                                                             self.y_hat_shap_bin)
+        # MSEE
+        xai_scores['usage_lime_MSEE'] = np.mean(y_hat_lime - y_hat_test[:len(y_hat_lime)]) ** 2
+        xai_scores['usage_shap_MSEE'] = np.mean(y_hat_shap - y_hat_test[:len(y_hat_shap)]) ** 2
 
         self.xai_scores = xai_scores
         return xai_scores
