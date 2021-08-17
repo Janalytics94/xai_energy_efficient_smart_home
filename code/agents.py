@@ -12,7 +12,6 @@ import matplotlib.pyplot as plt
 import xgboost as xgb
 import xgboost
 
-#from InputError import InputError
 # More ML Models
 import sklearn
 from sklearn.neighbors import KNeighborsClassifier
@@ -20,11 +19,9 @@ from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
 
 # Input Error
-# ==================================================================================================
-
+# ==============================================================================================
 class InputError(Exception):
     pass
-
 
 # Preparation Agent
 # ===============================================================================================
@@ -447,10 +444,6 @@ class Activity_Agent:
 
     def fit_XGB(self, X, y):
         return xgb.XGBClassifier(verbosity=0, use_label_encoder=False).fit(X, y)  # changed to dismiss warning
-    # Glasbox model which does not neead to be explained by lime and shap, Global explainability is possible
-    def fit_EBM(self, X, y):
-        from interpret.glassbox import ExplainableBoostingClassifier 
-        return ExplainableBoostingClassifier().fit(X, y)   
 
     def fit(self, X, y, model_type):
         model = None
@@ -464,8 +457,6 @@ class Activity_Agent:
             model = self.fit_random_forest(X, y)
         elif model_type == "xgboost":
             model = self.fit_XGB(X, y)
-        elif model_type == "ebm":
-            model = self.fit_EBM(X,y)    
         else:
             raise InputError("Unknown model type.")
         return model
@@ -488,9 +479,6 @@ class Activity_Agent:
             y_hat = model.predict_proba(X)[:,1]
 
         elif type(model) == xgboost.sklearn.XGBClassifier:
-            y_hat = model.predict_proba(X)[:,1]
-
-        elif type(model) == interpret.glassbox.ebm.ebm.ExplainableBoostingClassifier:
             y_hat = model.predict_proba(X)[:,1]
 
         else:
@@ -547,6 +535,7 @@ class Activity_Agent:
         predictions_list = []
 
         if weather_sel:
+            print("Crawl weather data....")
             # Add Weather
             ################################
             from meteostat import Point, Hourly
@@ -582,33 +571,56 @@ class Activity_Agent:
             df = df.set_index("time")
             # df.drop("time", axis=1, inplace=True)
             ################################
-        if xai:
-            print('The explainability approaches are being evaluated for model: ' + str(model_type))
+        if not xai:
+            for date in tqdm(dates):
+                errors = {}
+                try:
+                    X_train, y_train, X_test, y_test = self.train_test_split(
+                        df, date, **split_params
+                    )
 
-        for date in tqdm(dates):
-            errors = {}
-            try:
-                X_train, y_train, X_test, y_test = self.train_test_split(
-                    df, date, **split_params
-                )
+                    # fit model
+                    model = self.fit(X_train, y_train, model_type)
 
-                # fit model
-                model = self.fit(X_train, y_train, model_type)
+                    # self.predict uses predict_proba i.e. we get probability estimates and not classes
+                    y_hat_train.update({date: self.predict(model, X_train)})
+                    y_hat_test += list(self.predict(model, X_test))
 
-                # self.predict uses predict_proba i.e. we get probability estimates and not classes
-                y_hat_train.update({date: self.predict(model, X_train)})
-                y_hat_test += list(self.predict(model, X_test))
+                    # evaluate train data
+                    auc_train_dict.update(
+                        {date: self.auc(y_train, list(y_hat_train.values())[-1])}
+                    )
+                    y_true += list(y_test)
+                    
+                except Exception as e:
+                    errors[date] = e
+        else:
+            print('The explainability approaches in the Activity Agent are being evaluated for model: ' + str(model_type))
+            print('Start evaluation with LIME and SHAP')
+            import time
+            import lime
+            from lime import lime_tabular
+            import shap as shap
+                    
+            for date in tqdm(dates):
+                errors = {}
+                try:
+                    X_train, y_train, X_test, y_test = self.train_test_split(
+                        df, date, **split_params
+                    )
 
-                # evaluate train data
-                auc_train_dict.update(
-                    {date: self.auc(y_train, list(y_hat_train.values())[-1])}
-                )
-                y_true += list(y_test)
+                    # fit model
+                    model = self.fit(X_train, y_train, model_type)
 
-                if xai:
-                    import time
-                    import lime
-                    from lime import lime_tabular
+                    # self.predict uses predict_proba i.e. we get probability estimates and not classes
+                    y_hat_train.update({date: self.predict(model, X_train)})
+                    y_hat_test += list(self.predict(model, X_test))
+
+                    # evaluate train data
+                    auc_train_dict.update(
+                        {date: self.auc(y_train, list(y_hat_train.values())[-1])}
+                    )
+                    y_true += list(y_test)
 
                     start_time = time.time()
 
@@ -654,11 +666,8 @@ class Activity_Agent:
                     difference_time = end_time - start_time
 
                     xai_time_lime.append(difference_time)
-
-                    #print('SHAP: ')
-
-                    import shap as shap
-
+                    # SHAP
+                    # ==============================================================================
                     start_time = time.time()
 
                     # to do: add for all models
@@ -708,8 +717,8 @@ class Activity_Agent:
                     xai_time_shap.append(difference_time)
                     #print(xai_time_shap)
 
-            except Exception as e:
-                errors[date] = e
+                except Exception as e:
+                    errors[date] = e
 
         auc_test = self.auc(y_true, y_hat_test)
         auc_train = np.mean(list(auc_train_dict.values()))
@@ -739,7 +748,7 @@ class Activity_Agent:
         # Efficiency
         time_mean_lime = np.mean(xai_time_lime)
         time_mean_shap = np.mean(xai_time_shap)
-        print('Mean time nedded by appraoches: ' + str(time_mean_lime) + str(time_mean_shap))
+        print('Mean time nedded by appraoches: ' + str(time_mean_lime) + ' ' + str(time_mean_shap))
 
         if return_errors:
             return auc_train, auc_test, auc_train_dict, time_mean_lime, time_mean_shap, predictions_list, errors
@@ -1050,12 +1059,7 @@ class Usage_Agent:
         return  AdaBoostClassifier().fit(X,y)
 
     def fit_XGB(self,X,y):
-        return xgb.XGBClassifier().fit(X,y)
-
-    # Glasbox model which does not neead to be explained by lime and shap, Global explainability is possible
-    def fit_EBM(self, X, y):
-        from interpret.glassbox import ExplainableBoostingClassifier 
-        return ExplainableBoostingClassifier().fit(X, y)   
+        return xgb.XGBClassifier(verbosity=0, use_label_encoder=False).fit(X,y)
 
     def fit(self, X, y, model_type):
         model = None
@@ -1069,8 +1073,6 @@ class Usage_Agent:
             model = self.fit_random_forest(X,y)
         elif model_type == "xgboost":
            model = self.fit_XGB(X,y)
-        elif model_type == "ebm":
-            model = self.fit_EBM(X,y)   
         else:
             raise InputError("Unknown model type.")
         return model
@@ -1098,9 +1100,6 @@ class Usage_Agent:
             y_hat = model.predict_proba(X)[:,1]
         elif type(model) == xgboost.sklearn.XGBClassifier:
             y_hat = model.predict_proba(X)[:,1]
-        elif type(model) == interpret.glassbox.ebm.ebm.ExplainableBoostingClassifier:
-            y_hat = model.predict_proba(X)[:,1]
-  
         else:
             raise InputError("Unknown model type.")
 
@@ -1113,7 +1112,7 @@ class Usage_Agent:
 
     def evaluate(
             self, df, model_type, train_start, predict_start="2014-01-01", predict_end=-1, return_errors=False,
-            weather_sel=False
+            weather_sel=False, xai=False
     ):
         import pandas as pd
         import numpy as np
@@ -1131,10 +1130,17 @@ class Usage_Agent:
         y_true = []
         y_hat_train = {}
         y_hat_test = []
+        y_hat_lime = []
+        y_hat_shap = []
         auc_train_dict = {}
         auc_test = []
+        xai_time_lime = []
+        xai_time_shap = []
+        
+        predictions_list = []
 
         if weather_sel:
+            print('Crawl weather data....')
             # Add Weather
             ################################
             from meteostat import Point, Daily
@@ -1172,33 +1178,151 @@ class Usage_Agent:
             df = df.set_index("time")
             # df.drop("time", axis=1, inplace=True)
             ################################
+        
+        if not xai:
+            for date in tqdm(dates.index):
+                errors = {}
+                try:
+                    X_train, y_train, X_test, y_test = self.train_test_split(
+                        df, date, train_start
+                    )
+                    # fit model
+                    model = self.fit(X_train, y_train, model_type)
+                    # predict
+                    y_hat_train.update({date: self.predict(model, X_train)})
+                    y_hat_test += list(self.predict(model, X_test))
+                    # evaluate train data
+                    auc_train_dict.update(
+                        {date: self.auc(y_train, list(y_hat_train.values())[-1])}
+                    )
+                    y_true += list(y_test)
+                
+                except Exception as e:
+                    errors[date] = e    
+        else:
+            print('The explainability approaches in the Usage Agent are being evaluated for model: ' + str(model_type))
+            print('Start evaluation with LIME and SHAP')
+            import time
+            import lime
+            import shap as shap
+            from lime import lime_tabular
+      
+            for date in tqdm(dates.index):
+                errors = {}
+                try:
+                    X_train, y_train, X_test, y_test = self.train_test_split(
+                        df, date, train_start
+                    )
+                    # fit model
+                    model = self.fit(X_train, y_train, model_type)
+                    # predict
+                    y_hat_train.update({date: self.predict(model, X_train)})
+                    y_hat_test += list(self.predict(model, X_test))
+                    # evaluate train data
+                    auc_train_dict.update(
+                        {date: self.auc(y_train, list(y_hat_train.values())[-1])}
+                    )
+                    y_true += list(y_test)
+                    start_time = time.time()
 
-        for date in tqdm(dates.index):
-            errors = {}
-            try:
-                X_train, y_train, X_test, y_test = self.train_test_split(
-                    df, date, train_start
-                )
-                # fit model
-                model = self.fit(X_train, y_train, model_type)
-                # predict
-                y_hat_train.update({date: self.predict(model, X_train)})
-                y_hat_test += list(self.predict(model, X_test))
-                # evaluate train data
-                auc_train_dict.update(
-                    {date: self.auc(y_train, list(y_hat_train.values())[-1])}
-                )
-                y_true += list(y_test)
-            except Exception as e:
-                errors[date] = e
+                    if model_type == "xgboost":
+                        booster = model.get_booster()
+
+                        explainer = lime.lime_tabular.LimeTabularExplainer(X_train.values,
+                                                                           feature_names=X_train.columns,
+                                                                           kernel_width=3, verbose=False)
+                
+                    else:
+                        explainer = lime_tabular.LimeTabularExplainer(training_data=np.array(X_train),
+                                                                      mode="classification",
+                                                                      feature_names=X_train.columns,
+                                                                      categorical_features=[0])
+
+                    # optional to do: only select the instances that are predicted to be 1
+                    
+                    #for local in range(len(X_test)): Does not work for usage as we only get one prediction
+                        
+                    # still predict_proba since also used in other function: treshold dependent outcome
+                    if model_type == "xgboost":
+                        exp = explainer.explain_instance(X_test, model.predict_proba)
+                    else:
+                        exp = explainer.explain_instance(data_row=X_test, predict_fn=model.predict_proba)
+
+                    y_hat_lime += list(exp.local_pred)
+
+                    # take time for each day:
+                    end_time = time.time()
+                    difference_time = end_time - start_time
+
+                    xai_time_lime.append(difference_time)
+                    # SHAP
+                    # =========================================================================
+                    start_time = time.time()
+
+                    if model_type == "logit":
+                        #option: apply kmeans first for faster computation
+                        X_train_summary = shap.kmeans(X_train, 10)
+                        explainer = shap.KernelExplainer(model.predict_proba, X_train_summary)
+                        #without kmeans:
+                        #explainer = shap.KernelExplainer(model.predict_proba, X_train)
+
+                    elif model_type == "ada":
+                        X_train_summary = shap.kmeans(X_train, 10)
+                        explainer = shap.KernelExplainer(model.predict_proba, X_train_summary)
+
+                    elif model_type == "knn":
+                        X_train_summary = shap.kmeans(X_train, 10)
+                        explainer = shap.KernelExplainer(model.predict_proba, X_train_summary)
+
+                    elif model_type == "random forest":
+                        explainer = shap.TreeExplainer(model, X_train)
+
+                    elif model_type == "xgboost":
+                        explainer = shap.TreeExplainer(model, X_train, model_output='predict_proba')
+                    else:
+                        raise InputError("Unknown model type.")
+
+                    base_value = explainer.expected_value[1]  # the mean prediction
+
+                  
+                    #for local in range(len(X_test)):  # same as above
+
+                    shap_values = explainer.shap_values(
+                        X_test)
+                    # hier theoretisch ganzes test set prediction statt for loop möglich
+                    contribution_to_class_1 = np.array(shap_values).sum(axis=1)[1]  # the red part of the diagram
+                    shap_prediction = base_value + contribution_to_class_1
+                    #print(shap_prediction)
+                    # Prediction from XAI:
+                    y_hat_shap.append(shap_prediction)
+                    #print(y_hat_shap)
+
+
+                    # take time for each day:
+                    end_time = time.time()
+                    difference_time = end_time - start_time
+                    xai_time_shap.append(difference_time)
+                    #print(xai_time_shap)
+                    
+                except Exception as e:
+                    errors[date] = e
 
         auc_test = self.auc(y_true, y_hat_test)
         auc_train = np.mean(list(auc_train_dict.values()))
-
+        predictions_list.append(y_true)
+        predictions_list.append(y_hat_test)
+        predictions_list.append(y_hat_lime)
+        predictions_list.append(y_hat_shap)
+        
+        # Efficiency
+        time_mean_lime = np.mean(xai_time_lime)
+        time_mean_shap = np.mean(xai_time_shap)
+        print('Mean time nedded by appraoches: ' + str(time_mean_lime) + ' ' + str(time_mean_shap))
+        
         if return_errors:
-            return auc_train, auc_test, auc_train_dict, errors
+            return auc_train, auc_test, auc_train_dict, time_mean_lime, time_mean_shap, predictions_list, errors
         else:
-            return auc_train, auc_test, auc_train_dict
+            return auc_train, auc_test, auc_train_dict, time_mean_lime, time_mean_shap, predictions_list
 
     # pipeline function: predicting device usage
     # -------------------------------------------------------------------------------------------
@@ -1508,6 +1632,7 @@ class Performance_Evaluation_Agent:
         self.errors = {}
         self.agent_scores = {}
         self.agent_predictions_list = {}
+        self.agent_predictions_list_usage = {}
         self.cold_start_scores = {}
         # self.true_loads = None
         self.results = {}
@@ -1560,17 +1685,21 @@ class Performance_Evaluation_Agent:
 
         # storing the results
         if self.results != {}:
-            pickle.dump(self.results, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"])
-                                           + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_results.pkl", "wb"))
+            pickle.dump(self.results, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"]) +'_'
+                                        + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_results.pkl", "wb"))
 
         # storing the results
         if self.agent_scores != {}:
-            pickle.dump(self.agent_scores, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"])
-                                          + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_scores.pkl", "wb"))
+            pickle.dump(self.agent_scores, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"]) +'_'
+                                        + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_scores.pkl", "wb"))
 
         if self.agent_predictions_list != {}:
-            pickle.dump(self.agent_predictions_list, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"])
-                                          + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_predictions.pkl", "wb"))
+            pickle.dump(self.agent_predictions_list, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"]) +'_'
+                                         + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_predictions.pkl", "wb"))
+            
+        if self.agent_predictions_list_usage != {}:
+            pickle.dump(self.agent_predictions_list_usage, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"]) +'_'
+                                        + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_predictions_usage.pkl", "wb"))
 
     def __getitem__(self, item):
         return eval(f"self.{item}")
@@ -1847,38 +1976,43 @@ class Performance_Evaluation_Agent:
     # individual agent scores
     # -------------------------------------------------------------------------------------------
     def get_agent_scores(self, xai=False):
-        self.xai =xai
+        self.xai = xai
         scores = {}
         scores['activity_auc'] = None
-        scores['time_mean_lime'] = {}
-        scores['time_mean_shap'] = {}
+        scores['time_mean_lime_activity'] = {}
+        scores['time_mean_shap_activity'] = {}
         scores['usage_auc'] = {}
+        scores['time_mean_lime_usage'] = {}
+        scores['time_mean_shap_usage'] = {}
         scores['load_mse'] = {}
-
-        predictions = []
 
         agents = self._get_agent_names()
         for agent in agents:
             agent_type = agent.split('_')[0]
 
             if agent_type == 'activity':
-                _, auc_test, _, time_mean_lime, time_mean_shap, predictions_list = self[agent].evaluate(self[agent].input, **self.config[agent], xai=self.xai)
-                scores['activity_auc'] = auc_test
-                scores['time_mean_lime'] = time_mean_lime
-                scores['time_mean_shap'] = time_mean_shap
-                print(scores)
-                print(predictions_list)
+                _, auc_test_activity, _, time_mean_lime_activity, time_mean_shap_activity, predictions_list_activity = self[agent].evaluate(self[agent].input, **self.config[agent], xai=self.xai)
+                scores['activity_auc'] = auc_test_activity
+                scores['time_mean_lime_activity'] = time_mean_lime_activity
+                scores['time_mean_shap_activity'] = time_mean_shap_activity
+                #print(scores)
+                #print(predictions_list_activity)
             if agent_type == 'usage':
-                _, auc_test, _ = self[agent].evaluate(self[agent].input, **self.config[agent])
-                scores['usage_auc'][self[agent].device] = auc_test
+                _, auc_test_usage, _, time_mean_lime_usage, time_mean_shap_usage, predictions_list_usage = self[agent].evaluate(self[agent].input, **self.config[agent], xai=self.xai)
+                scores['usage_auc'][self[agent].device] = auc_test_usage
+                scores['time_mean_lime_usage'] = time_mean_lime_usage
+                scores['time_mean_shap_usage'] = time_mean_shap_usage
+                #print(scores)
+                #print(predictions_list_usage)
             if agent_type == 'load':
                 try:
                     scores['load_mse'] = self.load.evaluate(**self.config['load'], evaluation=self.output['load'])
                 except KeyError:
                     scores['load_mse'] = self.load.evaluate(**self.config['load'])
         self.agent_scores = scores
-        self.agent_predictions_list = predictions_list
-        return scores, predictions_list
+        self.agent_predictions_list_activity = predictions_list_activity
+        self.agent_predictions_list_usage = predictions_list_usage
+        return scores, predictions_list_activity, predictions_list_usage
 
     def agent_scores_to_summary(self, scores='default'):
         import pandas as pd
@@ -1974,6 +2108,70 @@ class Performance_Evaluation_Agent:
         # MSEE
         xai_scores['activity_lime_MSEE'] = np.mean(y_hat_lime - y_hat_test[:len(y_hat_lime)]) ** 2
         xai_scores['activity_shap_MSEE'] = np.mean(y_hat_shap - y_hat_test[:len(y_hat_shap)]) ** 2
+
+        self.xai_scores = xai_scores
+        return xai_scores
+    
+    def predictions_to_xai_metrics_usage(self, predictions, activity_threshold, usage_threshold):
+        import numpy as np
+        import sklearn.metrics
+
+        y_true = np.array(predictions[0])
+        y_hat_test = np.array(predictions[1])
+        y_hat_lime = np.array(predictions[2])
+        y_hat_shap = np.array(predictions[3])
+
+        self.activity_threshold = activity_threshold
+        self.usage_threshold = usage_threshold
+
+        self.y_true = y_true
+        self.y_hat_test = y_hat_test
+        self.y_hat_lime = y_hat_lime
+        self.y_hat_shap = y_hat_shap
+
+        #turn y_hat test into binary
+        self.y_hat_test_bin = np.where(y_hat_test > usage_threshold, 1, 0)
+        self.y_hat_lime_bin = np.where(y_hat_lime > usage_threshold, 1, 0)
+        self.y_hat_shap_bin = np.where(y_hat_shap > usage_threshold, 1, 0)
+
+
+        xai_scores = {}
+        xai_scores['usage_lime_auc_true'] = None
+        xai_scores['usage_shap_auc_true'] = {}
+        xai_scores['usage_lime_auc_pred'] = {}
+        xai_scores['usage_shap_auc_pred'] = {}
+        xai_scores['usage_lime_MSEE'] = {}
+        xai_scores['usage_shap_MSEE'] = {}
+
+        # AUC of true - xai prediction
+        xai_scores['usage_lime_auc_true'] = sklearn.metrics.roc_auc_score(y_true[:len(y_hat_lime)], y_hat_lime)
+        xai_scores['usage_shap_auc_true'] = sklearn.metrics.roc_auc_score(y_true[:len(y_hat_shap)], y_hat_shap)
+
+        # AUC of predicted probabilities - xai prediction
+        # to do: check if correct because kind of bad?
+        xai_scores['usage_lime_auc_pred'] = sklearn.metrics.roc_auc_score(self.y_hat_test_bin[:len(y_hat_lime)], self.y_hat_lime_bin)
+        xai_scores['usage_shap_auc_pred'] = sklearn.metrics.roc_auc_score(self.y_hat_test_bin[:len(y_hat_shap)], self.y_hat_shap_bin)
+
+        # accuracy
+        xai_scores['usage_lime_acc_pred'] = sklearn.metrics.accuracy_score(self.y_hat_test_bin[:len(y_hat_lime)],
+                                                                             self.y_hat_lime_bin)
+        xai_scores['usage_shap_acc_pred'] = sklearn.metrics.accuracy_score(self.y_hat_test_bin[:len(y_hat_shap)],
+                                                                             self.y_hat_shap_bin)
+
+        # precision
+        xai_scores['usage_lime_precision_pred'] = sklearn.metrics.precision_score(self.y_hat_test_bin[:len(y_hat_lime)],
+                                                                             self.y_hat_lime_bin)
+        xai_scores['usage_shap_precision_pred'] = sklearn.metrics.precision_score(self.y_hat_test_bin[:len(y_hat_shap)],
+                                                                             self.y_hat_shap_bin)
+
+        # recall
+        xai_scores['usage_lime_recall_pred'] = sklearn.metrics.recall_score(self.y_hat_test_bin[:len(y_hat_lime)],
+                                                                             self.y_hat_lime_bin)
+        xai_scores['usage_shap_recall_pred'] = sklearn.metrics.recall_score(self.y_hat_test_bin[:len(y_hat_shap)],
+                                                                             self.y_hat_shap_bin)
+        # MSEE
+        xai_scores['usage_lime_MSEE'] = np.mean(y_hat_lime - y_hat_test[:len(y_hat_lime)]) ** 2
+        xai_scores['usage_shap_MSEE'] = np.mean(y_hat_shap - y_hat_test[:len(y_hat_shap)]) ** 2
 
         self.xai_scores = xai_scores
         return xai_scores
@@ -2459,3 +2657,8 @@ class Performance_Evaluation_Agent:
         result = result.append(pd.Series(optimal_thresholds))
         result.name = self.config['data']['household']
         return result
+
+# Explainability Agent
+# ===============================================================================================
+#class Explainabilty_Agent:
+#   def __init__(self):
