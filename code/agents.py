@@ -12,12 +12,18 @@ import matplotlib.pyplot as plt
 import xgboost as xgb
 import xgboost
 
-from InputError import InputError
+#from InputError import InputError
 # More ML Models
 import sklearn
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
+
+# Input Error
+# ==================================================================================================
+
+class InputError(Exception):
+    pass
 
 
 # Preparation Agent
