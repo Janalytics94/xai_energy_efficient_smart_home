@@ -12,13 +12,16 @@ import matplotlib.pyplot as plt
 import xgboost as xgb
 import xgboost
 
-from InputError import InputError
 # More ML Models
 import sklearn
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
 
+# Input Error
+# ==============================================================================================
+class InputError(Exception):
+    pass
 
 # Preparation Agent
 # ===============================================================================================
@@ -532,6 +535,7 @@ class Activity_Agent:
         predictions_list = []
 
         if weather_sel:
+            print("Crawl weather data....")
             # Add Weather
             ################################
             from meteostat import Point, Hourly
@@ -567,33 +571,56 @@ class Activity_Agent:
             df = df.set_index("time")
             # df.drop("time", axis=1, inplace=True)
             ################################
-        if xai:
-            print('The explainability approaches are being evaluated for model: ' + str(model_type))
+        if not xai:
+            for date in tqdm(dates):
+                errors = {}
+                try:
+                    X_train, y_train, X_test, y_test = self.train_test_split(
+                        df, date, **split_params
+                    )
 
-        for date in tqdm(dates):
-            errors = {}
-            try:
-                X_train, y_train, X_test, y_test = self.train_test_split(
-                    df, date, **split_params
-                )
+                    # fit model
+                    model = self.fit(X_train, y_train, model_type)
 
-                # fit model
-                model = self.fit(X_train, y_train, model_type)
+                    # self.predict uses predict_proba i.e. we get probability estimates and not classes
+                    y_hat_train.update({date: self.predict(model, X_train)})
+                    y_hat_test += list(self.predict(model, X_test))
 
-                # self.predict uses predict_proba i.e. we get probability estimates and not classes
-                y_hat_train.update({date: self.predict(model, X_train)})
-                y_hat_test += list(self.predict(model, X_test))
+                    # evaluate train data
+                    auc_train_dict.update(
+                        {date: self.auc(y_train, list(y_hat_train.values())[-1])}
+                    )
+                    y_true += list(y_test)
+                    
+                except Exception as e:
+                    errors[date] = e
+        else:
+            print('The explainability approaches in the Activity Agent are being evaluated for model: ' + str(model_type))
+            print('Start evaluation with LIME and SHAP')
+            import time
+            import lime
+            from lime import lime_tabular
+            import shap as shap
+                    
+            for date in tqdm(dates):
+                errors = {}
+                try:
+                    X_train, y_train, X_test, y_test = self.train_test_split(
+                        df, date, **split_params
+                    )
 
-                # evaluate train data
-                auc_train_dict.update(
-                    {date: self.auc(y_train, list(y_hat_train.values())[-1])}
-                )
-                y_true += list(y_test)
+                    # fit model
+                    model = self.fit(X_train, y_train, model_type)
 
-                if xai:
-                    import time
-                    import lime
-                    from lime import lime_tabular
+                    # self.predict uses predict_proba i.e. we get probability estimates and not classes
+                    y_hat_train.update({date: self.predict(model, X_train)})
+                    y_hat_test += list(self.predict(model, X_test))
+
+                    # evaluate train data
+                    auc_train_dict.update(
+                        {date: self.auc(y_train, list(y_hat_train.values())[-1])}
+                    )
+                    y_true += list(y_test)
 
                     start_time = time.time()
 
@@ -639,11 +666,8 @@ class Activity_Agent:
                     difference_time = end_time - start_time
 
                     xai_time_lime.append(difference_time)
-
-                    #print('SHAP: ')
-
-                    import shap as shap
-
+                    # SHAP
+                    # ==============================================================================
                     start_time = time.time()
 
                     # to do: add for all models
@@ -693,8 +717,8 @@ class Activity_Agent:
                     xai_time_shap.append(difference_time)
                     #print(xai_time_shap)
 
-            except Exception as e:
-                errors[date] = e
+                except Exception as e:
+                    errors[date] = e
 
         auc_test = self.auc(y_true, y_hat_test)
         auc_train = np.mean(list(auc_train_dict.values()))
@@ -1116,6 +1140,7 @@ class Usage_Agent:
         predictions_list = []
 
         if weather_sel:
+            print('Crawl weather data....')
             # Add Weather
             ################################
             from meteostat import Point, Daily
@@ -1153,32 +1178,51 @@ class Usage_Agent:
             df = df.set_index("time")
             # df.drop("time", axis=1, inplace=True)
             ################################
-        if xai:
-            print('The explainability approaches are being evaluated for model: ' + str(model_type))
-
         
-        for date in tqdm(dates.index):
-            errors = {}
-            try:
-                X_train, y_train, X_test, y_test = self.train_test_split(
-                    df, date, train_start
-                )
-                # fit model
-                model = self.fit(X_train, y_train, model_type)
-                # predict
-                y_hat_train.update({date: self.predict(model, X_train)})
-                y_hat_test += list(self.predict(model, X_test))
-                # evaluate train data
-                auc_train_dict.update(
-                    {date: self.auc(y_train, list(y_hat_train.values())[-1])}
-                )
-                y_true += list(y_test)
+        if not xai:
+            for date in tqdm(dates.index):
+                errors = {}
+                try:
+                    X_train, y_train, X_test, y_test = self.train_test_split(
+                        df, date, train_start
+                    )
+                    # fit model
+                    model = self.fit(X_train, y_train, model_type)
+                    # predict
+                    y_hat_train.update({date: self.predict(model, X_train)})
+                    y_hat_test += list(self.predict(model, X_test))
+                    # evaluate train data
+                    auc_train_dict.update(
+                        {date: self.auc(y_train, list(y_hat_train.values())[-1])}
+                    )
+                    y_true += list(y_test)
                 
-                if xai:
-                    import time
-                    import lime
-                    from lime import lime_tabular
-
+                except Exception as e:
+                    errors[date] = e    
+        else:
+            print('The explainability approaches in the Usage Agent are being evaluated for model: ' + str(model_type))
+            print('Start evaluation with LIME and SHAP')
+            import time
+            import lime
+            import shap as shap
+            from lime import lime_tabular
+      
+            for date in tqdm(dates.index):
+                errors = {}
+                try:
+                    X_train, y_train, X_test, y_test = self.train_test_split(
+                        df, date, train_start
+                    )
+                    # fit model
+                    model = self.fit(X_train, y_train, model_type)
+                    # predict
+                    y_hat_train.update({date: self.predict(model, X_train)})
+                    y_hat_test += list(self.predict(model, X_test))
+                    # evaluate train data
+                    auc_train_dict.update(
+                        {date: self.auc(y_train, list(y_hat_train.values())[-1])}
+                    )
+                    y_true += list(y_test)
                     start_time = time.time()
 
                     if model_type == "xgboost":
@@ -1215,14 +1259,10 @@ class Usage_Agent:
                     difference_time = end_time - start_time
 
                     xai_time_lime.append(difference_time)
-
-                    #print('SHAP: ')
-
-                    import shap as shap
-
+                    # SHAP
+                    # =========================================================================
                     start_time = time.time()
 
-                    # to do: add for all models
                     if model_type == "logit":
                         #option: apply kmeans first for faster computation
                         X_train_summary = shap.kmeans(X_train, 10)
@@ -1243,7 +1283,6 @@ class Usage_Agent:
 
                     elif model_type == "xgboost":
                         explainer = shap.TreeExplainer(model, X_train, model_output='predict_proba')
-                        #print(explainer)
                     else:
                         raise InputError("Unknown model type.")
 
@@ -1268,9 +1307,9 @@ class Usage_Agent:
                     difference_time = end_time - start_time
                     xai_time_shap.append(difference_time)
                     #print(xai_time_shap)
-                
-            except Exception as e:
-                errors[date] = e
+                    
+                except Exception as e:
+                    errors[date] = e
 
         auc_test = self.auc(y_true, y_hat_test)
         auc_train = np.mean(list(auc_train_dict.values()))
@@ -1282,7 +1321,7 @@ class Usage_Agent:
         # Efficiency
         time_mean_lime = np.mean(xai_time_lime)
         time_mean_shap = np.mean(xai_time_shap)
-        print('Mean time nedded by appraoches: ' + str(time_mean_lime) + str(time_mean_shap))
+        print('Mean time nedded by appraoches: ' + str(time_mean_lime) + ' ' + str(time_mean_shap))
         
         if return_errors:
             return auc_train, auc_test, auc_train_dict, time_mean_lime, time_mean_shap, predictions_list, errors
@@ -1963,12 +2002,12 @@ class Performance_Evaluation_Agent:
                 print(scores)
                 print(predictions_list)
             if agent_type == 'usage':
-                _, auc_test, _, time_mean_lime_usage, time_mean_shap_usage, predictions_list_usage = self[agent].evaluate(self[agent].input, **self.config[agent], xai=self.xai)
+                _, auc_test, _, time_mean_lime_usage, time_mean_shap_usage, predictions_list = self[agent].evaluate(self[agent].input, **self.config[agent], xai=self.xai)
                 scores['usage_auc'][self[agent].device] = auc_test 
                 scores['time_mean_lime_usage'] = time_mean_lime_usage
                 scores['time_mean_shap_usage'] = time_mean_shap_usage
                 print(scores)
-                print(predictions_list_usage)
+                print(predictions_list)
             if agent_type == 'load':
                 try:
                     scores['load_mse'] = self.load.evaluate(**self.config['load'], evaluation=self.output['load'])
@@ -2622,3 +2661,8 @@ class Performance_Evaluation_Agent:
         result = result.append(pd.Series(optimal_thresholds))
         result.name = self.config['data']['household']
         return result
+
+# Explainability Agent
+# ===============================================================================================
+#class Explainabilty_Agent:
+#   def __init__(self):
