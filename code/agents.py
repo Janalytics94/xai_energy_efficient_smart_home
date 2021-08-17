@@ -18,6 +18,10 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
 
+# Glasbox Model 
+import interpret
+from interpret.glassbox.ebm.ebm import ExplainableBoostingClassifier 
+
 # Input Error
 # ==============================================================================================
 class InputError(Exception):
