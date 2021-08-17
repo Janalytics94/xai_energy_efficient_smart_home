@@ -1311,18 +1311,18 @@ class Usage_Agent:
                 except Exception as e:
                     errors[date] = e
 
-        auc_test = self.auc(y_true, y_hat_test)
-        auc_train = np.mean(list(auc_train_dict.values()))
-        predictions_list.append(y_true)
-        predictions_list.append(y_hat_test)
-        predictions_list.append(y_hat_lime)
-        predictions_list.append(y_hat_shap)
-        
-        # Efficiency
-        time_mean_lime = np.mean(xai_time_lime)
-        time_mean_shap = np.mean(xai_time_shap)
-        print('Mean time nedded by appraoches: ' + str(time_mean_lime) + ' ' + str(time_mean_shap))
-        
+            auc_test = self.auc(y_true, y_hat_test)
+            auc_train = np.mean(list(auc_train_dict.values()))
+            predictions_list.append(y_true)
+            predictions_list.append(y_hat_test)
+            predictions_list.append(y_hat_lime)
+            predictions_list.append(y_hat_shap)
+            
+            # Efficiency
+            time_mean_lime = np.mean(xai_time_lime)
+            time_mean_shap = np.mean(xai_time_shap)
+            print('Mean time nedded by appraoches: ' + str(time_mean_lime) + ' ' + str(time_mean_shap))
+            
         if return_errors:
             return auc_train, auc_test, auc_train_dict, time_mean_lime, time_mean_shap, predictions_list, errors
         else:
@@ -1995,28 +1995,28 @@ class Performance_Evaluation_Agent:
             agent_type = agent.split('_')[0]
 
             if agent_type == 'activity':
-                _, auc_test, _, time_mean_lime, time_mean_shap, predictions_list = self[agent].evaluate(self[agent].input, **self.config[agent], xai=self.xai)
+                _, auc_test, _, time_mean_lime, time_mean_shap, predictions_list_activity = self[agent].evaluate(self[agent].input, **self.config[agent], xai=self.xai)
                 scores['activity_auc'] = auc_test
                 scores['time_mean_lime'] = time_mean_lime
                 scores['time_mean_shap'] = time_mean_shap
                 print(scores)
-                print(predictions_list)
+                print(predictions_list_activity)
             if agent_type == 'usage':
-                _, auc_test, _, time_mean_lime_usage, time_mean_shap_usage, predictions_list = self[agent].evaluate(self[agent].input, **self.config[agent], xai=self.xai)
+                _, auc_test, _, time_mean_lime_usage, time_mean_shap_usage, predictions_list_usage = self[agent].evaluate(self[agent].input, **self.config[agent], xai=self.xai)
                 scores['usage_auc'][self[agent].device] = auc_test 
                 scores['time_mean_lime_usage'] = time_mean_lime_usage
                 scores['time_mean_shap_usage'] = time_mean_shap_usage
                 print(scores)
-                print(predictions_list)
+                print(predictions_list_usage)
             if agent_type == 'load':
                 try:
                     scores['load_mse'] = self.load.evaluate(**self.config['load'], evaluation=self.output['load'])
                 except KeyError:
                     scores['load_mse'] = self.load.evaluate(**self.config['load'])
         self.agent_scores = scores
-        self.agent_predictions_list = predictions_list
+        self.agent_predictions_list_activity = predictions_list_activity
         self.agent_predictions_list_usage = predictions_list_usage
-        return scores, predictions_list, predictions_list_usage
+        return scores, predictions_list_activity, predictions_list_usage
 
     def agent_scores_to_summary(self, scores='default'):
         import pandas as pd
