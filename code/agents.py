@@ -448,7 +448,9 @@ class Activity_Agent:
 
     def fit_XGB(self, X, y):
         return xgb.XGBClassifier(verbosity=0, use_label_encoder=False).fit(X, y)  # changed to dismiss warning
-    def fit_EBM(self, X,y): # Add Glasbox model that includes global and local explanability without Lime and SHAP
+    
+    # Add Glasbox model that includes global and local explanability without Lime and SHAP
+    def fit_EBM(self, X,y): 
         return ExplainableBoostingClassifier.fit(X,y)
 
     def fit(self, X, y, model_type):
@@ -1072,8 +1074,9 @@ class Usage_Agent:
     def fit_XGB(self,X,y):
         return xgb.XGBClassifier(verbosity=0, use_label_encoder=False).fit(X,y)
     
+    # Add Glasbox model that includes global and local explanability without Lime and SHAP
     def fit_EBM(self,X,y):
-        return ExplainableBoostingClassifier(X,y)
+        return ExplainableBoostingClassifier.fit(X,y)
 
     def fit(self, X, y, model_type):
         model = None
