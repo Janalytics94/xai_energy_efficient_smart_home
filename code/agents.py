@@ -748,7 +748,7 @@ class Activity_Agent:
         # Efficiency
         time_mean_lime = np.mean(xai_time_lime)
         time_mean_shap = np.mean(xai_time_shap)
-        print('Mean time nedded by appraoches: ' + str(time_mean_lime) + str(time_mean_shap))
+        print('Mean time nedded by appraoches: ' + str(time_mean_lime) + ' ' + str(time_mean_shap))
 
         if return_errors:
             return auc_train, auc_test, auc_train_dict, time_mean_lime, time_mean_shap, predictions_list, errors
@@ -1059,7 +1059,7 @@ class Usage_Agent:
         return  AdaBoostClassifier().fit(X,y)
 
     def fit_XGB(self,X,y):
-        return xgb.XGBClassifier().fit(X,y)
+        return xgb.XGBClassifier(verbosity=0, use_label_encoder=False).fit(X,y)
 
     def fit(self, X, y, model_type):
         model = None
@@ -1231,9 +1231,7 @@ class Usage_Agent:
                         explainer = lime.lime_tabular.LimeTabularExplainer(X_train.values,
                                                                            feature_names=X_train.columns,
                                                                            kernel_width=3, verbose=False)
-                        #print(explainer)
-
-
+                
                     else:
                         explainer = lime_tabular.LimeTabularExplainer(training_data=np.array(X_train),
                                                                       mode="classification",
@@ -1241,18 +1239,16 @@ class Usage_Agent:
                                                                       categorical_features=[0])
 
                     # optional to do: only select the instances that are predicted to be 1
-                    # for local in
-                    #to do:
-                    for local in range(1):  # replace 3 with when is works: len(X_test)
-                        # to do: hier weiter
-                        #print('Instance: ' + str(local))
-                        # still predict_proba since also used in other function: treshold dependent outcome
-                        if model_type == "xgboost":
-                            exp = explainer.explain_instance(X_test[local, :], model.predict_proba)
-                        else:
-                            exp = explainer.explain_instance(data_row=X_test[local], predict_fn=model.predict_proba)
+                    
+                    #for local in range(len(X_test)): Does not work for usage as we only get one prediction
+                        
+                    # still predict_proba since also used in other function: treshold dependent outcome
+                    if model_type == "xgboost":
+                        exp = explainer.explain_instance(X_test, model.predict_proba)
+                    else:
+                        exp = explainer.explain_instance(data_row=X_test, predict_fn=model.predict_proba)
 
-                        y_hat_lime += list(exp.local_pred)
+                    y_hat_lime += list(exp.local_pred)
 
                     # take time for each day:
                     end_time = time.time()
@@ -1288,18 +1284,18 @@ class Usage_Agent:
 
                     base_value = explainer.expected_value[1]  # the mean prediction
 
-                    #to do:
-                    for local in range(1):  # replace 3 with when is works: len(X_test)
+                  
+                    #for local in range(len(X_test)):  # same as above
 
-                        shap_values = explainer.shap_values(
-                            X_test[local])
-                        # hier theoretisch ganzes test set prediction statt for loop möglich
-                        contribution_to_class_1 = np.array(shap_values).sum(axis=1)[1]  # the red part of the diagram
-                        shap_prediction = base_value + contribution_to_class_1
-                        #print(shap_prediction)
-                        # Prediction from XAI:
-                        y_hat_shap.append(shap_prediction)
-                        #print(y_hat_shap)
+                    shap_values = explainer.shap_values(
+                        X_test)
+                    # hier theoretisch ganzes test set prediction statt for loop möglich
+                    contribution_to_class_1 = np.array(shap_values).sum(axis=1)[1]  # the red part of the diagram
+                    shap_prediction = base_value + contribution_to_class_1
+                    #print(shap_prediction)
+                    # Prediction from XAI:
+                    y_hat_shap.append(shap_prediction)
+                    #print(y_hat_shap)
 
 
                     # take time for each day:
@@ -1311,18 +1307,18 @@ class Usage_Agent:
                 except Exception as e:
                     errors[date] = e
 
-            auc_test = self.auc(y_true, y_hat_test)
-            auc_train = np.mean(list(auc_train_dict.values()))
-            predictions_list.append(y_true)
-            predictions_list.append(y_hat_test)
-            predictions_list.append(y_hat_lime)
-            predictions_list.append(y_hat_shap)
-            
-            # Efficiency
-            time_mean_lime = np.mean(xai_time_lime)
-            time_mean_shap = np.mean(xai_time_shap)
-            print('Mean time nedded by appraoches: ' + str(time_mean_lime) + ' ' + str(time_mean_shap))
-            
+        auc_test = self.auc(y_true, y_hat_test)
+        auc_train = np.mean(list(auc_train_dict.values()))
+        predictions_list.append(y_true)
+        predictions_list.append(y_hat_test)
+        predictions_list.append(y_hat_lime)
+        predictions_list.append(y_hat_shap)
+        
+        # Efficiency
+        time_mean_lime = np.mean(xai_time_lime)
+        time_mean_shap = np.mean(xai_time_shap)
+        print('Mean time nedded by appraoches: ' + str(time_mean_lime) + ' ' + str(time_mean_shap))
+        
         if return_errors:
             return auc_train, auc_test, auc_train_dict, time_mean_lime, time_mean_shap, predictions_list, errors
         else:
@@ -1983,8 +1979,8 @@ class Performance_Evaluation_Agent:
         self.xai = xai
         scores = {}
         scores['activity_auc'] = None
-        scores['time_mean_lime'] = {}
-        scores['time_mean_shap'] = {}
+        scores['time_mean_lime_activity'] = {}
+        scores['time_mean_shap_activity'] = {}
         scores['usage_auc'] = {}
         scores['time_mean_lime_usage'] = {}
         scores['time_mean_shap_usage'] = {}
@@ -1995,19 +1991,19 @@ class Performance_Evaluation_Agent:
             agent_type = agent.split('_')[0]
 
             if agent_type == 'activity':
-                _, auc_test, _, time_mean_lime, time_mean_shap, predictions_list_activity = self[agent].evaluate(self[agent].input, **self.config[agent], xai=self.xai)
-                scores['activity_auc'] = auc_test
-                scores['time_mean_lime'] = time_mean_lime
-                scores['time_mean_shap'] = time_mean_shap
-                print(scores)
-                print(predictions_list_activity)
+                _, auc_test_activity, _, time_mean_lime_activity, time_mean_shap_activity, predictions_list_activity = self[agent].evaluate(self[agent].input, **self.config[agent], xai=self.xai)
+                scores['activity_auc'] = auc_test_activity
+                scores['time_mean_lime_activity'] = time_mean_lime_activity
+                scores['time_mean_shap_activity'] = time_mean_shap_activity
+                #print(scores)
+                #print(predictions_list_activity)
             if agent_type == 'usage':
-                _, auc_test, _, time_mean_lime_usage, time_mean_shap_usage, predictions_list_usage = self[agent].evaluate(self[agent].input, **self.config[agent], xai=self.xai)
-                scores['usage_auc'][self[agent].device] = auc_test 
+                _, auc_test_usage, _, time_mean_lime_usage, time_mean_shap_usage, predictions_list_usage = self[agent].evaluate(self[agent].input, **self.config[agent], xai=self.xai)
+                scores['usage_auc'][self[agent].device] = auc_test_usage
                 scores['time_mean_lime_usage'] = time_mean_lime_usage
                 scores['time_mean_shap_usage'] = time_mean_shap_usage
-                print(scores)
-                print(predictions_list_usage)
+                #print(scores)
+                #print(predictions_list_usage)
             if agent_type == 'load':
                 try:
                     scores['load_mse'] = self.load.evaluate(**self.config['load'], evaluation=self.output['load'])
