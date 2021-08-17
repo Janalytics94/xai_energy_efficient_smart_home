@@ -19,6 +19,9 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
 
+# Glasbox Model 
+import interpret
+from interpret.glassbox.ebm.ebm import ExplainableBoostingClassifier 
 
 # Preparation Agent
 # ===============================================================================================
@@ -443,7 +446,6 @@ class Activity_Agent:
         return xgb.XGBClassifier(verbosity=0, use_label_encoder=False).fit(X, y)  # changed to dismiss warning
     # Glasbox model which does not neead to be explained by lime and shap, Global explainability is possible
     def fit_EBM(self, X, y):
-        from interpret.glassbox import ExplainableBoostingClassifier 
         return ExplainableBoostingClassifier().fit(X, y)   
 
     def fit(self, X, y, model_type):
@@ -484,7 +486,7 @@ class Activity_Agent:
         elif type(model) == xgboost.sklearn.XGBClassifier:
             y_hat = model.predict_proba(X)[:,1]
 
-        elif type(model) == interpret.glassbox.ebm.ebm.ExplainableBoostingClassifier:
+        elif type(model) == ExplainableBoostingClassifier:
             y_hat = model.predict_proba(X)[:,1]
 
         else:
@@ -1048,7 +1050,6 @@ class Usage_Agent:
 
     # Glasbox model which does not neead to be explained by lime and shap, Global explainability is possible
     def fit_EBM(self, X, y):
-        from interpret.glassbox import ExplainableBoostingClassifier 
         return ExplainableBoostingClassifier().fit(X, y)   
 
     def fit(self, X, y, model_type):
@@ -1092,7 +1093,7 @@ class Usage_Agent:
             y_hat = model.predict_proba(X)[:,1]
         elif type(model) == xgboost.sklearn.XGBClassifier:
             y_hat = model.predict_proba(X)[:,1]
-        elif type(model) == interpret.glassbox.ebm.ebm.ExplainableBoostingClassifier:
+        elif type(model) == ExplainableBoostingClassifier:
             y_hat = model.predict_proba(X)[:,1]
   
         else:
