@@ -656,7 +656,7 @@ class Activity_Agent:
                     # optional to do: only select the instances that are predicted to be 1
                     # for local in
                     #to do:
-                    for local in range(2):  # replace 3 with when is works: len(X_test)
+                    for local in range(len(X_test)):  # replace 3 with when is works: len(X_test)
                         # to do: hier weiter
                         #print('Instance: ' + str(local))
                         # still predict_proba since also used in other function: treshold dependent outcome
@@ -712,7 +712,7 @@ class Activity_Agent:
                     base_value = explainer.expected_value[1]  # the mean prediction
 
                     #to do:
-                    for local in range(2):  # replace 3 with when is works: len(X_test)
+                    for local in range(len(X_test)):  # replace 3 with when is works: len(X_test)
 
                         shap_values = explainer.shap_values(
                             X_test.iloc[local, :])
@@ -1653,7 +1653,7 @@ class Performance_Evaluation_Agent:
         self.output = {}
         self.errors = {}
         self.agent_scores = {}
-        self.agent_predictions_list = {}
+        self.agent_predictions_list_activity = {}
         self.agent_predictions_list_usage = {}
         self.cold_start_scores = {}
         # self.true_loads = None
@@ -1716,7 +1716,7 @@ class Performance_Evaluation_Agent:
                                         + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_scores.pkl", "wb"))
 
         if self.agent_predictions_list != {}:
-            pickle.dump(self.agent_predictions_list, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"]) +'_'
+            pickle.dump(self.agent_predictions_list_activity, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"]) +'_'
                                          + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_predictions.pkl", "wb"))
 
         if self.agent_predictions_list_usage != {}:
