@@ -1715,7 +1715,7 @@ class Performance_Evaluation_Agent:
             pickle.dump(self.agent_scores, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"]) +'_'
                                         + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_scores.pkl", "wb"))
 
-        if self.agent_predictions_list != {}:
+        if self.agent_predictions_list_activity != {}:
             pickle.dump(self.agent_predictions_list_activity, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"]) +'_'
                                          + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_predictions.pkl", "wb"))
 
