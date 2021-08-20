@@ -1305,14 +1305,18 @@ class Usage_Agent:
                         raise InputError("Unknown model type.")
 
                     base_value = explainer.expected_value[1]  # the mean prediction
+                    print(base_value)
 
 
                     #for local in range(len(X_test)):  # same as above
 
                     shap_values = explainer.shap_values(
                         X_test)
+                    #print(shap_values)
                     # hier theoretisch ganzes test set prediction statt for loop möglich
-                    contribution_to_class_1 = np.array(shap_values).sum(axis=1)[1]  # the red part of the diagram
+                    contribution_to_class_1 = np.array(shap_values).sum(axis=1)[1]
+                    # the red part of the diagram
+                    #print(contribution_to_class_1)
                     shap_prediction = base_value + contribution_to_class_1
                     #print(shap_prediction)
                     # Prediction from XAI:
@@ -1715,7 +1719,7 @@ class Performance_Evaluation_Agent:
             pickle.dump(self.agent_scores, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"]) +'_'
                                         + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_scores.pkl", "wb"))
 
-        if self.agent_predictions_list != {}:
+        if self.agent_predictions_list_activity != {}:
             pickle.dump(self.agent_predictions_list_activity, open(EXPORT_PATH + str(self.config["data"]["household"]) + '_' + str(self.config["activity"]["model_type"]) +'_'
                                          + str(self.config["usage"]["model_type"]) + '_' + str(self.weather_sel) + "_predictions.pkl", "wb"))
 
