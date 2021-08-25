@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import time
 import pandas as pd
+import numpy as np
 
 from sklearn.preprocessing import MinMaxScaler
 from tqdm import tqdm
@@ -12,6 +13,7 @@ import matplotlib.pyplot as plt
 import xgboost as xgb
 import xgboost
 import multiprocessing
+import shap
 
 # More ML Models
 import sklearn
@@ -1449,7 +1451,7 @@ class Usage_Agent:
 # ===============================================================================================
 class Recommendation_Agent:
     def __init__(
-        self, activity_input, usage_input, load_input, price_input, shiftable_devices, model_type):
+        self, activity_input, usage_input, load_input, price_input, shiftable_devices, model_type, best_hour = None):
         self.activity_input = activity_input
         self.usage_input = usage_input
         self.load_input = load_input
@@ -1463,6 +1465,7 @@ class Recommendation_Agent:
         }
         self.Load_Agent = Load_Agent(load_input)
         self.Price_Agent = Price_Agent(price_input)
+        self.best_hour = best_hour
 
     # calculating costs
     # -------------------------------------------------------------------------------------------
@@ -1522,7 +1525,12 @@ class Recommendation_Agent:
         # compute costs by launching time:
         costs = self.cost_by_starting_time(date, device, evaluation=evaluation)
         # compute activity probabilities
+        #X_train_activity = None
+        #X_test_activity = None
+        model_activity = None
+        #self.best_hour = None
         if not evaluation:
+            print('inside of evaluation')
             if weather_sel:
                 activity_probs, X_train_activity, X_test_activity, model_activity = self.Activity_Agent.pipeline_xai(self.activity_input, date, self.model_type, split_params, weather_sel=True)
             else:
@@ -1541,7 +1549,7 @@ class Recommendation_Agent:
             no_recommend_flag_activity = 1
 
         # compute cheapest hour from likely ones
-        best_hour = np.argmin(np.array(costs) * np.array(activity_probs))
+        self.best_hour = np.argmin(np.array(costs) * np.array(activity_probs))
 
         # compute likelihood of usage:
         if not evaluation:
@@ -1562,16 +1570,17 @@ class Recommendation_Agent:
             #self.model_activity = model_activity
             #self.best_hour = best_hour
             #self.Explainability_Agent = Explainability_Agent(X_train_activity, X_test_activity, model_activity, best_hour)
-            sentence_dummy = Explainability_Agent(X_train_activity, X_test_activity, model_activity, best_hour)
-
+            explain = Explainability_Agent(model_activity, X_train_activity, X_test_activity, self.best_hour, self.model_type)
+            sentence_dummy = explain.feature_importance()
+            
         return {
             "recommendation_date": [date],
             "device": [device],
-            "best_launch_hour": [best_hour],
+            "best_launch_hour": [self.best_hour],
             "no_recommend_flag_activity": [no_recommend_flag_activity],
             "no_recommend_flag_usage": [no_recommend_flag_usage],
             "recommendation": [
-                best_hour
+                self.best_hour
                 if (no_recommend_flag_activity == 0 and no_recommend_flag_usage == 0)
                 else np.nan
             ],
@@ -2745,41 +2754,47 @@ class Performance_Evaluation_Agent:
 # ===============================================================================================
 
 class Explainability_Agent:
-    def __init__(self, pred_model, X_train_activity, X_test_activity, best_hour):
-        self.pred_model = pred_model
+    def __init__(self, model_activity, X_train_activity, X_test_activity, best_hour, model_type = "logit"):
+        self.model_activity = model_activity
+        self.model_type = model_type
         self.X_train_activity = X_train_activity
         self.X_test_activity = X_test_activity
         self.best_hour = best_hour
 
     def feature_importance(self):
-        if model_type == "logit":
-            X_train_summary = shap.kmeans(X_train_activity, 10)
-            explainer = shap.KernelExplainer(model_activity.predict_proba, X_train_summary)
+        print(self.model_type)
+        if self.model_type == "logit":
+            X_train_summary = shap.kmeans(self.X_train_activity, 10)
+            explainer = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
 
-        elif model_type == "ada":
-            X_train_summary = shap.kmeans(X_train_activity, 10)
-            explainer = shap.KernelExplainer(model_activity.predict_proba, X_train_summary)
+        elif self.model_type == "ada":
+            X_train_summary = shap.kmeans(self.X_train_activity, 10)
+            explainer = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
 
-        elif model_type == "knn":
-            X_train_summary = shap.kmeans(X_train_activity, 10)
-            explainer = shap.KernelExplainer(model_activity.predict_proba, X_train_summary)
+        elif self.model_type == "knn":
+            X_train_summary = shap.kmeans(self.X_train_activity, 10)
+            explainer = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
 
-        elif model_type == "random forest":
-            explainer = shap.TreeExplainer(model_activity, X_train_activity)
+        elif self.model_type == "random forest":
+            explainer = shap.TreeExplainer(self.model_activity, self.X_train_activity)
 
-        elif model_type == "xgboost":
-            explainer = shap.TreeExplainer(model_activity, X_train_activity, model_output='predict_proba')
+        elif self.model_type == "xgboost":
+            explainer = shap.TreeExplainer(self.model_activity, self.X_train_activity, model_output='predict_proba')
         else:
             raise InputError("Unknown model type.")
 
         shap_values = explainer.shap_values(
-            X_test_activity.iloc[best_hour, :])
+            self.X_test_activity.iloc[self.best_hour, :])
 
+       
+        feature_names = list(self.X_train_activity.columns.values)
+        feature_names
+        #%%
         vals = np.abs(shap_values).mean(0)
-
-        feature_importance = pd.DataFrame(list(zip(features.columns, sum(vals))),
-                                          columns=['col_name', 'feature_importance_vals'])
+        #vals = shap_values[1]
+        #%%
+        feature_importance = pd.DataFrame(list(zip(feature_names, vals)), columns=['col_name','feature_importance_vals'])
         feature_importance.sort_values(by=['feature_importance_vals'], ascending=False, inplace=True)
-        feature_importance.head()
+        feature_importance
 
         return feature_importance
