@@ -6,6 +6,9 @@ from sklearn.preprocessing import MinMaxScaler
 from tqdm import tqdm
 from helper_functions import Helper
 import matplotlib.pyplot as plt
+from datetime import datetime
+import shap as shap
+import numpy as np
 
 # import statsmodels.api as sm
 # import statsmodels
@@ -824,6 +827,62 @@ class Activity_Agent:
         return self.predict(model, X_test)
 
 
+# pipeline function: predicting user activity with xai
+    # -------------------------------------------------------------------------------------------
+    def pipeline_xai(self, df, date, model_type, split_params, weather_sel=False):
+
+        if weather_sel:
+
+            # Add Weather
+            ################################
+            from meteostat import Point, Hourly
+            from datetime import datetime
+
+            lough = Point(52.766593, -1.223511)
+            time = df.index.to_series(name="time").tolist()
+            weather = Hourly(lough, time[0], time[len(df) - 1])
+            weather = weather.fetch()
+
+            from sklearn.impute import KNNImputer
+            import numpy as np
+
+            headers = weather.columns.values
+
+            empty_train_columns = []
+            for col in weather.columns.values:
+                if sum(weather[col].isnull()) == weather.shape[0]:
+                    empty_train_columns.append(col)
+            headers = np.setdiff1d(headers, empty_train_columns)
+
+            imputer = KNNImputer(missing_values=np.nan, n_neighbors=7, weights="distance")
+            weather = imputer.fit_transform(weather)
+            scaler = MinMaxScaler()
+            weather = scaler.fit_transform(weather)
+            weather = pd.DataFrame(weather)
+            weather["time"] = time[0:len(weather)]
+            df["time"] = time
+
+            weather.columns = np.append(headers, "time")
+
+            df = pd.merge(df, weather, how="right", on="time")
+            df = df.set_index("time")
+            # df.drop("time", axis=1, inplace=True)
+            ################################
+
+        # train test split
+        X_train, y_train, X_test, y_test = self.train_test_split(
+            df, date, **split_params
+        )
+
+        # fit model
+        model = self.fit(X_train, y_train, model_type)
+
+        # predict
+        return self.predict(model, X_test), X_train, X_test, model
+
+
+
+
 # Load Agent
 # ===============================================================================================
 class Load_Agent:
@@ -1394,11 +1453,57 @@ class Usage_Agent:
         return self.predict(model, X_test)
 
 
+    # pipeline function: predicting device usage
+    # -------------------------------------------------------------------------------------------
+    def pipeline_xai(self, df, date, model_type, train_start, weather_sel=True):
+
+        if weather_sel:
+            # Add Weather
+            ################################
+            from meteostat import Point, Daily
+            from datetime import datetime, timedelta
+
+            lough = Point(52.766593, -1.223511)
+            time = df.index.to_series(name="time").tolist()
+            start = time[0]
+            end = time[len(time) - 1]
+            weather = Daily(lough, start, end)
+            weather = weather.fetch()
+
+            from sklearn.impute import KNNImputer
+            import numpy as np
+
+            headers = weather.columns.values
+
+            empty_train_columns = []
+            for col in weather.columns.values:
+                if sum(weather[col].isnull()) == weather.shape[0]:
+                    empty_train_columns.append(col)
+            headers = np.setdiff1d(headers, empty_train_columns)
+
+            imputer = KNNImputer(missing_values=np.nan, n_neighbors=7, weights="distance")
+            weather = imputer.fit_transform(weather)
+            scaler = MinMaxScaler()
+            weather = scaler.fit_transform(weather)
+            weather = pd.DataFrame(weather)
+            weather["time"] = time[0:len(weather)]
+            df["time"] = time
+
+            weather.columns = np.append(headers, "time")
+
+            df = pd.merge(df, weather, how="right", on="time")
+            df = df.set_index("time")
+            # df.drop("time", axis=1, inplace=True)
+            ################################
+
+        X_train, y_train, X_test, y_test = self.train_test_split(df, date, train_start)
+        model = self.fit(X_train, y_train, model_type)
+        return self.predict(model, X_test), X_train, X_test, model
 # Recommendation Agent
 # ===============================================================================================
 class Recommendation_Agent:
     def __init__(
-        self, activity_input, usage_input, load_input, price_input, shiftable_devices):
+        self, activity_input, usage_input, load_input, price_input, shiftable_devices, best_hour = None):
         self.activity_input = activity_input
         self.usage_input = usage_input
         self.load_input = load_input
@@ -1412,6 +1517,7 @@ class Recommendation_Agent:
         }
         self.Load_Agent = Load_Agent(load_input)
         self.Price_Agent = Price_Agent(price_input)
+        self.best_hour = best_hour
 
     # calculating costs
     # -------------------------------------------------------------------------------------------
@@ -1456,7 +1562,7 @@ class Recommendation_Agent:
         activity_prob_threshold,
         usage_prob_threshold,
         evaluation=False,
-        weather_sel=False
+        weather_sel=True
     ):
         import numpy as np
 
@@ -1469,12 +1575,19 @@ class Recommendation_Agent:
         }
         # compute costs by launching time:
         costs = self.cost_by_starting_time(date, device, evaluation=evaluation)
+
+        X_train_activity = None
+        X_test_activity = None
+        model_activity = None
+        model_usage = None
         # compute activity probabilities
         if not evaluation:
             if weather_sel:
-                activity_probs = self.Activity_Agent.pipeline(self.activity_input, date, self.model_type, split_params, weather_sel=True)
+                #activity_probs = self.Activity_Agent.pipeline(self.activity_input, date, 'logit', split_params, weather_sel=True)
+                activity_probs, X_train_activity, X_test_activity, model_activity = self.Activity_Agent.pipeline_xai(
+                    self.activity_input, date, 'logit', split_params, weather_sel=True)
             else:
-                activity_probs = self.Activity_Agent.pipeline(self.activity_input, date, self.model_type, split_params)
+                activity_probs = self.Activity_Agent.pipeline(self.activity_input, date, 'logit', split_params)
         else:
             # get activity probs for date
             activity_probs = evaluation["activity"][date]
@@ -1489,11 +1602,13 @@ class Recommendation_Agent:
             no_recommend_flag_activity = 1
 
         # compute cheapest hour from likely ones
-        best_hour = np.argmin(np.array(costs) * np.array(activity_probs))
+        self.best_hour = np.argmin(np.array(costs) * np.array(activity_probs))
 
         # compute likelihood of usage:
         if not evaluation:
-            usage_prob = self.Usage_Agent[device].pipeline(self.usage_input, date, self.model_type, split_params["train_start"])
+            #usage_prob = self.Usage_Agent[device].pipeline(self.usage_input, date, 'logit', split_params["train_start"])
+            usage_prob, X_train_usage, X_test_usage, model_usage = self.Usage_Agent[device].pipeline_xai(
+                self.usage_input, date,'logit', split_params["train_start"], weather_sel=True)
         else:
             # get usage probs
             name = ("usage_" + device.replace(" ", "_").replace("(", "").replace(")", "").lower())
@@ -1504,17 +1619,34 @@ class Recommendation_Agent:
         if usage_prob < usage_prob_threshold:
             no_recommend_flag_usage = 1
 
+        if no_recommend_flag_activity == 0 and no_recommend_flag_usage == 0:
+                #self.X_train_activity = X_train_activity
+                #self.X_test_activity = X_test_activity
+                #self.model_activity = model_activity
+                #self.best_hour = best_hour
+                self.Explainability_Agent = Explainability_Agent(model_activity, X_train_activity, X_test_activity, self.best_hour, model_usage,
+               X_train_usage, X_test_usage, model_type="logit")
+
+                print('Going to the explanation now:')
+                explain = Explainability_Agent(model_activity, X_train_activity, X_test_activity,
+                                               self.best_hour,model_usage,X_train_usage, X_test_usage,
+                                               'logit')
+                feature_importance_activity, feature_importance_usage = explain.feature_importance()
+
+
         return {
             "recommendation_date": [date],
             "device": [device],
-            "best_launch_hour": [best_hour],
+            "best_launch_hour": [self.best_hour],
             "no_recommend_flag_activity": [no_recommend_flag_activity],
             "no_recommend_flag_usage": [no_recommend_flag_usage],
             "recommendation": [
-                best_hour
+                self.best_hour
                 if (no_recommend_flag_activity == 0 and no_recommend_flag_usage == 0)
                 else np.nan
             ],
+            "feature_importance_activity": [feature_importance_activity],
+            "feature_importance_usage": [feature_importance_usage],
         }
 
     # visualize recommendation_by device
@@ -1567,7 +1699,7 @@ class Recommendation_Agent:
 
     # pipeline function: create recommendations
     # -------------------------------------------------------------------------------------------
-    def pipeline(self, date, activity_prob_threshold, usage_prob_threshold, evaluation=False, weather_sel=False):
+    def pipeline(self, date, activity_prob_threshold, usage_prob_threshold, evaluation=False, weather_sel=True):
         import pandas as pd
 
         recommendations_by_device = self.recommend_by_device(
@@ -2682,5 +2814,95 @@ class Performance_Evaluation_Agent:
 
 # Explainability Agent
 # ===============================================================================================
-#class Explainabilty_Agent:
-#   def __init__(self):
+# Explainability Agent
+# ===============================================================================================
+class Explainability_Agent:
+    def __init__(self, model_activity, X_train_activity, X_test_activity, best_hour, model_usage,
+               X_train_usage, X_test_usage, model_type="logit"):
+        self.model_activity = model_activity
+        self.model_type = model_type
+        self.X_train_activity = X_train_activity
+        self.X_test_activity = X_test_activity
+        self.best_hour = best_hour
+        self.model_usage = model_usage
+        self.X_train_usage = X_train_usage
+        self.X_test_usage = X_test_usage
+
+    def feature_importance(self):
+        print(self.model_type)
+        print(self.X_train_activity)
+        print(self.model_activity)
+        print(self.best_hour)
+        if self.model_type == "logit":
+            X_train_summary = shap.kmeans(self.X_train_activity, 10)
+            explainer = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
+
+        elif self.model_type == "ada":
+            X_train_summary = shap.kmeans(self.X_train_activity, 10)
+            explainer = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
+
+        elif self.model_type == "knn":
+            X_train_summary = shap.kmeans(self.X_train_activity, 10)
+            explainer = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
+
+        elif self.model_type == "random forest":
+            explainer = shap.TreeExplainer(self.model_activity, self.X_train_activity)
+
+        elif self.model_type == "xgboost":
+            explainer = shap.TreeExplainer(self.model_activity, self.X_train_activity, model_output='predict_proba')
+        else:
+            raise InputError("Unknown model type.")
+
+        shap_values = explainer.shap_values(
+            self.X_test_activity.iloc[self.best_hour, :])
+
+        feature_names_activity = list(self.X_train_activity.columns.values)
+        feature_names_activity
+        # %%
+        vals_activity = np.abs(shap_values).mean(0)
+        # vals_activity = shap_values[1]
+        # %%
+        feature_importance_activity = pd.DataFrame(list(zip(feature_names_activity, vals_activity)),
+                                                   columns=['col_name', 'feature_importance_vals'])
+        feature_importance_activity.sort_values(by=['feature_importance_vals'], ascending=False, inplace=True)
+        feature_importance_activity
+
+        # usage
+        if self.model_type == "logit":
+            # option: apply kmeans first for faster computation
+            X_train_summary = shap.kmeans(self.X_train_usage, 10)
+            explainer = shap.KernelExplainer(self.model_usage.predict_proba, X_train_summary)
+            # without kmeans:
+            # explainer = shap.KernelExplainer(model.predict_proba, X_train)
+
+        elif self.model_type == "ada":
+            X_train_summary = shap.kmeans(self.X_train_usage, 10)
+            explainer = shap.KernelExplainer(self.model_usage.predict_proba, X_train_summary)
+
+        elif self.model_type == "knn":
+            X_train_summary = shap.kmeans(self.X_train_usage, 10)
+            explainer = shap.KernelExplainer(self.model_usage.predict_proba, X_train_summary)
+
+        elif self.model_type == "random forest":
+            explainer = shap.TreeExplainer(self.model_usage, self.X_train_usage)
+
+        elif self.model_type == "xgboost":
+            explainer = shap.TreeExplainer(self.model_usage, self.X_train_usage, model_output='predict_proba')
+        else:
+            raise InputError("Unknown model type.")
+
+        shap_values_usage = explainer.shap_values(
+            self.X_test_usage)
+
+        feature_names_usage = list(self.X_train_usage.columns.values)
+        feature_names_usage
+        # %%
+        vals = np.abs(shap_values_usage).mean(0)
+        # vals = shap_values[1]
+        # %%
+        feature_importance_usage = pd.DataFrame(list(zip(feature_names_usage, vals)),
+                                                columns=['col_name', 'feature_importance_vals'])
+        feature_importance_usage.sort_values(by=['feature_importance_vals'], ascending=False, inplace=True)
+        feature_importance_usage
+
+        return feature_importance_activity, feature_importance_usage
