@@ -14,6 +14,7 @@ import xgboost as xgb
 import xgboost
 import multiprocessing
 import shap
+from datetime import datetime
 
 # More ML Models
 import sklearn
@@ -1550,14 +1551,13 @@ class Recommendation_Agent:
     # creating recommendations
     # -------------------------------------------------------------------------------------------
     def recommend_by_device(
-        self,
-        date,
-        device,
-        activity_prob_threshold,
-        usage_prob_threshold,
-        model_type,
-        evaluation=False,
-        weather_sel=False
+            self,
+            date,
+            device,
+            activity_prob_threshold,
+            usage_prob_threshold,
+            evaluation=False,
+            weather_sel=False
     ):
         import numpy as np
 
@@ -1571,15 +1571,10 @@ class Recommendation_Agent:
         # compute costs by launching time:
         costs = self.cost_by_starting_time(date, device, evaluation=evaluation)
         # compute activity probabilities
-        #X_train_activity = None
-        #X_test_activity = None
-        model_activity = None
-        model_usage = None
-        #self.best_hour = None
         if not evaluation:
-            print('inside of evaluation')
             if weather_sel:
-                activity_probs, X_train_activity, X_test_activity, model_activity = self.Activity_Agent.pipeline_xai(self.activity_input, date, self.model_type, split_params, weather_sel=True)
+                activity_probs = self.Activity_Agent.pipeline(self.activity_input, date, self.model_type, split_params,
+                                                              weather_sel=True)
             else:
                 activity_probs = self.Activity_Agent.pipeline(self.activity_input, date, self.model_type, split_params)
         else:
@@ -1596,52 +1591,123 @@ class Recommendation_Agent:
             no_recommend_flag_activity = 1
 
         # compute cheapest hour from likely ones
-        self.best_hour = np.argmin(np.array(costs) * np.array(activity_probs))
+        best_hour = np.argmin(np.array(costs) * np.array(activity_probs))
 
         # compute likelihood of usage:
         if not evaluation:
-            print('in usage pipeline:')
-            # hier usage:
-            usage_prob, X_train_usage, X_test_usage, model_usage = self.Usage_Agent[device].pipeline_xai(self.usage_input, date, self.model_type, split_params["train_start"], weather_sel=True)
-            print(X_train_usage, X_test_usage, model_usage)
-
-
+            usage_prob = self.Usage_Agent[device].pipeline(self.usage_input, date, self.model_type,
+                                                           split_params["train_start"])
         else:
             # get usage probs
             name = ("usage_" + device.replace(" ", "_").replace("(", "").replace(")", "").lower())
             usage_prob = evaluation[name][date]
 
-
         no_recommend_flag_usage = 0
         if usage_prob < usage_prob_threshold:
             no_recommend_flag_usage = 1
 
-        if no_recommend_flag_activity == 0 and no_recommend_flag_usage == 0:
-            #self.X_train_activity = X_train_activity
-            #self.X_test_activity = X_test_activity
-            #self.model_activity = model_activity
-            #self.best_hour = best_hour
-            #self.Explainability_Agent = Explainability_Agent(X_train_activity, X_test_activity, model_activity, best_hour)
-            print('Going to the explanation now:')
-            explain = Explainability_Agent(model_activity, X_train_activity, X_test_activity,
-                                           self.best_hour,model_usage,X_train_usage, X_test_usage,
-                                           self.model_type)
-            feature_importance_activity, feature_importance_usage = explain.feature_importance()
-            
         return {
             "recommendation_date": [date],
             "device": [device],
-            "best_launch_hour": [self.best_hour],
+            "best_launch_hour": [best_hour],
             "no_recommend_flag_activity": [no_recommend_flag_activity],
             "no_recommend_flag_usage": [no_recommend_flag_usage],
             "recommendation": [
-                self.best_hour
+                best_hour
                 if (no_recommend_flag_activity == 0 and no_recommend_flag_usage == 0)
                 else np.nan
             ],
-            "feature_importance_activity": [feature_importance_activity],
-            "feature_importance_usage": [feature_importance_usage],
         }
+
+    # def recommend_by_device(self, date,device,activity_prob_threshold,usage_prob_threshold,
+    #                         evaluation=False,weather_sel=False):
+    #     import numpy as np
+    #
+    #     # add split params as input
+    #     # IN PARTICULAR --> Specify date to start training
+    #     split_params = {
+    #         "train_start": "2013-11-01",
+    #         "test_delta": {"days": 1, "seconds": -1},
+    #         "target": "activity",
+    #     }
+    #     # compute costs by launching time:
+    #     costs = self.cost_by_starting_time(date, device, evaluation=evaluation)
+    #     # compute activity probabilities
+    #     #X_train_activity = None
+    #     #X_test_activity = None
+    #     model_activity = None
+    #     model_usage = None
+    #     #self.best_hour = None
+    #     if not evaluation:
+    #         print('inside of evaluation')
+    #         if weather_sel:
+    #             #activity_probs, X_train_activity, X_test_activity, model_activity = self.Activity_Agent.pipeline_xai(self.activity_input, date, self.model_type, split_params, weather_sel=True)
+    #             activity_probs = self.Activity_Agent.pipeline(self.activity_input, date, self.model_type, split_params, weather_sel=True)
+    #
+    #         else:
+    #             activity_probs = self.Activity_Agent.pipeline(self.activity_input, date, self.model_type, split_params)
+    #     else:
+    #         # get activity probs for date
+    #         activity_probs = evaluation["activity"][date]
+    #
+    #     # set values above threshold to 1. Values below to Inf
+    #     # (vector will be multiplied by costs, so that hours of little activity likelihood get cost = Inf)
+    #     activity_probs = np.where(activity_probs >= activity_prob_threshold, 1, float("Inf"))
+    #
+    #     # add a flag in case all hours have likelihood smaller than threshold
+    #     no_recommend_flag_activity = 0
+    #     if np.min(activity_probs) == float("Inf"):
+    #         no_recommend_flag_activity = 1
+    #
+    #     # compute cheapest hour from likely ones
+    #     self.best_hour = np.argmin(np.array(costs) * np.array(activity_probs))
+    #
+    #     # compute likelihood of usage:
+    #     if not evaluation:
+    #         print('in usage pipeline:')
+    #         # hier usage:
+    #         #usage_prob, X_train_usage, X_test_usage, model_usage = self.Usage_Agent[device].pipeline_xai(self.usage_input, date, self.model_type, split_params["train_start"], weather_sel=True)
+    #         usage_prob= self.Usage_Agent[device].pipeline(self.usage_input, date, self.model_type, split_params["train_start"], weather_sel=True)
+    #
+    #         #print(X_train_usage, X_test_usage, model_usage)
+    #
+    #
+    #     else:
+    #         # get usage probs
+    #         name = ("usage_" + device.replace(" ", "_").replace("(", "").replace(")", "").lower())
+    #         usage_prob = evaluation[name][date]
+    #
+    #
+    #     no_recommend_flag_usage = 0
+    #     if usage_prob < usage_prob_threshold:
+    #         no_recommend_flag_usage = 1
+    #
+    #     #if no_recommend_flag_activity == 0 and no_recommend_flag_usage == 0:
+    #         #self.X_train_activity = X_train_activity
+    #         #self.X_test_activity = X_test_activity
+    #         #self.model_activity = model_activity
+    #         #self.best_hour = best_hour
+    #         #self.Explainability_Agent = Explainability_Agent(X_train_activity, X_test_activity, model_activity, best_hour)
+    #         #print('Going to the explanation now:')
+    #         #explain = Explainability_Agent(model_activity, X_train_activity, X_test_activity,
+    #         #                               self.best_hour,model_usage,X_train_usage, X_test_usage,
+    #         #                               self.model_type)
+    #         #feature_importance_activity, feature_importance_usage = explain.feature_importance()
+    #
+    #     return {
+    #         "recommendation_date": [date],
+    #         "device": [device],
+    #         "best_launch_hour": [self.best_hour],
+    #         "no_recommend_flag_activity": [no_recommend_flag_activity],
+    #         "no_recommend_flag_usage": [no_recommend_flag_usage],
+    #         "recommendation": [
+    #             self.best_hour
+    #             if (no_recommend_flag_activity == 0 and no_recommend_flag_usage == 0)
+    #             else np.nan
+    #         ]#,
+    #         #"feature_importance_activity": [feature_importance_activity],
+    #         #"feature_importance_usage": [feature_importance_usage],
+    #     }
 
     # visualize recommendation_by device
     def visualize_recommendation_by_device(self, dict):
@@ -1728,22 +1794,21 @@ class Recommendation_Agent:
             )
         return recommendations_table
 
-        def visualize_recommendation(self, recommendations_table):
+    def visualize_recommendation(self, recommendations_table):
 
-            for i in range(len(recommendations_table)):
-                date_and_time = recommendations_table.recommendation_date.iloc[i] + ':' + str(recommendations_table.best_launch_hour.iloc[i])
+        for i in range(len(recommendations_table)):
+            date_and_time = recommendations_table.recommendation_date.iloc[i] + ':' + str(recommendations_table.best_launch_hour.iloc[i])
 
-                date_and_time =  datetime.strptime(date_and_time, '%Y-%m-%d:%H')
+            date_and_time =  datetime.strptime(date_and_time, '%Y-%m-%d:%H')
 
-                date_and_time_show = date_and_time.strftime(format = "%d.%m.%Y %H:%M")
-                date_and_time_price = date_and_time.strftime(format = "%Y-%m-%d %H:%M:%S")
-                price = price.filter(like=date_and_time_price, axis=0)['Price_at_H+0'].iloc[0]
-                output = print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i]+ '\n\n Please use the device on the ' + date_and_time_show[0:10] + ' at ' + date_and_time_show[11:] + ' Uhr because it cost you only ' + str(price) + ' €.\n')
-                if (recommendations_table.no_recommend_flag_activity.iloc[i]==0 and recommendations_table.no_recommend_flag_usage.iloc[i]==0) == True:
-                    return output
-                else:
-                    return
-
+            date_and_time_show = date_and_time.strftime(format = "%d.%m.%Y %H:%M")
+            date_and_time_price = date_and_time.strftime(format = "%Y-%m-%d %H:%M:%S")
+            price = price.filter(like=date_and_time_price, axis=0)['Price_at_H+0'].iloc[0]
+            output = print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i]+ '\n\n Please use the device on the ' + date_and_time_show[0:10] + ' at ' + date_and_time_show[11:] + ' Uhr because it cost you only ' + str(price) + ' €.\n')
+            if (recommendations_table.no_recommend_flag_activity.iloc[i]==0 and recommendations_table.no_recommend_flag_usage.iloc[i]==0) == True:
+                return output
+            else:
+                return
 # Performance Evaluation Agent
 # ===============================================================================================
 class Performance_Evaluation_Agent:
