@@ -878,7 +878,7 @@ class Activity_Agent:
         model = self.fit(X_train, y_train, model_type)
 
         # predict
-        return self.predict(model, X_test), X_train, X_test, model, scaler
+        return self.predict(model, X_test), X_train, X_test, model
 
 
 
@@ -1455,7 +1455,7 @@ class Usage_Agent:
 
     # pipeline function: predicting device usage
     # -------------------------------------------------------------------------------------------
-    def pipeline_xai(self, df, date, model_type, train_start, weather_sel=True):
+    def pipeline_xai(self, df, date, model_type, train_start, weather_sel=False):
 
         if weather_sel:
             # Add Weather
@@ -1498,7 +1498,9 @@ class Usage_Agent:
 
         X_train, y_train, X_test, y_test = self.train_test_split(df, date, train_start)
         model = self.fit(X_train, y_train, model_type)
-        return self.predict(model, X_test), X_train, X_test, model, scaler
+        return self.predict(model, X_test), X_train, X_test, model
+
+
 # Recommendation Agent
 # ===============================================================================================
 class Recommendation_Agent:
@@ -1562,7 +1564,7 @@ class Recommendation_Agent:
         activity_prob_threshold,
         usage_prob_threshold,
         evaluation=False,
-        weather_sel=True
+        weather_sel=False
     ):
         import numpy as np
 
@@ -1580,16 +1582,16 @@ class Recommendation_Agent:
         X_test_activity = None
         model_activity = None
         model_usage = None
-        self.scaler_activity = None
-        self.scaler_usage = None
+
         # compute activity probabilities
         if not evaluation:
             if weather_sel:
                 #activity_probs = self.Activity_Agent.pipeline(self.activity_input, date, 'logit', split_params, weather_sel=True)
-                activity_probs, X_train_activity, X_test_activity, model_activity, self.scaler_activity = self.Activity_Agent.pipeline_xai(
+                activity_probs, X_train_activity, X_test_activity, model_activity = self.Activity_Agent.pipeline_xai(
                     self.activity_input, date, 'logit', split_params, weather_sel=True)
             else:
-                activity_probs = self.Activity_Agent.pipeline(self.activity_input, date, 'logit', split_params)
+                activity_probs, X_train_activity, X_test_activity, model_activity = self.Activity_Agent.pipeline_xai(
+                    self.activity_input, date, 'logit', split_params, weather_sel=False)
         else:
             # get activity probs for date
             activity_probs = evaluation["activity"][date]
@@ -1608,9 +1610,14 @@ class Recommendation_Agent:
 
         # compute likelihood of usage:
         if not evaluation:
-            #usage_prob = self.Usage_Agent[device].pipeline(self.usage_input, date, 'logit', split_params["train_start"])
-            usage_prob, X_train_usage, X_test_usage, model_usage, self.scaler_usage = self.Usage_Agent[device].pipeline_xai(
-                self.usage_input, date,'logit', split_params["train_start"], weather_sel=True)
+            if weather_sel:
+                #usage_prob = self.Usage_Agent[device].pipeline(self.usage_input, date, 'logit', split_params["train_start"])
+                usage_prob, X_train_usage, X_test_usage, model_usage = self.Usage_Agent[device].pipeline_xai(
+                    self.usage_input, date,'logit', split_params["train_start"], weather_sel=True)
+            else:
+                #usage_prob = self.Usage_Agent[device].pipeline(self.usage_input, date, 'logit', split_params["train_start"])
+                usage_prob, X_train_usage, X_test_usage, model_usage = self.Usage_Agent[device].pipeline_xai(
+                self.usage_input, date,'logit', split_params["train_start"], weather_sel=False)
         else:
             # get usage probs
             name = ("usage_" + device.replace(" ", "_").replace("(", "").replace(")", "").lower())
@@ -1627,12 +1634,12 @@ class Recommendation_Agent:
                 #self.model_activity = model_activity
                 #self.best_hour = best_hour
                 self.Explainability_Agent = Explainability_Agent(model_activity, X_train_activity, X_test_activity, self.best_hour, model_usage,
-               X_train_usage, X_test_usage,self.scaler_activity, self.scaler_usage, model_type="logit")
+                X_train_usage, X_test_usage, model_type="logit")
 
                 #print('Going to the explanation now:')
                 explain = Explainability_Agent(model_activity, X_train_activity, X_test_activity,
                                                self.best_hour,model_usage,X_train_usage, X_test_usage,
-                                               self.scaler_activity, self.scaler_usage, model_type= 'logit')
+                                               model_type= 'logit')
                 feature_importance_activity, feature_importance_usage = explain.feature_importance()
 
 
@@ -1702,7 +1709,7 @@ class Recommendation_Agent:
 
     # pipeline function: create recommendations
     # -------------------------------------------------------------------------------------------
-    def pipeline(self, date, activity_prob_threshold, usage_prob_threshold, evaluation=False, weather_sel=True):
+    def pipeline(self, date, activity_prob_threshold, usage_prob_threshold, evaluation=False, weather_sel=False):
         import pandas as pd
 
         recommendations_by_device = self.recommend_by_device(
@@ -2852,7 +2859,7 @@ class Performance_Evaluation_Agent:
 # ===============================================================================================
 class Explainability_Agent:
     def __init__(self, model_activity, X_train_activity, X_test_activity, best_hour, model_usage,
-               X_train_usage, X_test_usage,scaler_activity, scaler_usage, model_type="logit"):
+               X_train_usage, X_test_usage, model_type="logit"):
         self.model_activity = model_activity
         self.model_type = model_type
         self.X_train_activity = X_train_activity
@@ -2861,8 +2868,6 @@ class Explainability_Agent:
         self.model_usage = model_usage
         self.X_train_usage = X_train_usage
         self.X_test_usage = X_test_usage
-        self.scaler_activity = scaler_activity
-        self.scaler_usage = scaler_usage
 
     def feature_importance(self):
         print(self.model_type)
@@ -2945,9 +2950,8 @@ class Explainability_Agent:
 
         return feature_importance_activity, feature_importance_usage
 
-    def explanation_from_feature_importance_activity(self, feature_importance_activity, scaler_activity, diagnostics=False):
+    def explanation_from_feature_importance_activity(self, feature_importance_activity, diagnostics=False):
         self.feature_importance_activity = feature_importance_activity
-        self.scaler_activity = scaler_activity
         self.diagnostics = diagnostics
 
         # Sentence structure:
@@ -3033,10 +3037,9 @@ class Explainability_Agent:
 
         return explanation_sentence
 
-    def explanation_from_feature_importance_usage(self, feature_importance_usage, scaler_usage, diagnostics=False):
+    def explanation_from_feature_importance_usage(self, feature_importance_usage, diagnostics=False):
 
         self.feature_importance_usage= feature_importance_usage
-        self.scaler_usage= scaler_usage
         self.diagnostics = diagnostics
 
         # check if really active in X_test otherwise put not active
