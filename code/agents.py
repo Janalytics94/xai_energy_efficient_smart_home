@@ -1737,33 +1737,54 @@ class Recommendation_Agent:
             )
         return recommendations_table
 
-    def visualize_recommendation(self, recommendations_table, price):
+    def visualize_recommendation(self, recommendations_table, price, diagnostics=False):
+        self.diagnostics = diagnostics
 
-        #explaination for activity is same for all
-        feature_importance_activity = recommendations_table['feature_importance_activity'].iloc[0]
-        print(feature_importance_activity)
-        explaination_activity = self.Explainability_Agent.explanation_from_feature_importance_activity(feature_importance_activity, self.scaler_activity, diagnostics=False)
+        # problem: explanaton nur wenn auch flag 0 und activity nur einmal
+        for r in range(len(recommendations_table)):
+            if (recommendations_table.no_recommend_flag_activity.iloc[r] == 0 and
+                recommendations_table.no_recommend_flag_usage.iloc[r] == 0) == True:
 
-        explaination_usage = []
-        for i in range(len(recommendations_table)):
-            date_and_time = recommendations_table.recommendation_date.iloc[i] + ':' + str(recommendations_table.best_launch_hour.iloc[i])
-
-            date_and_time =  datetime.strptime(date_and_time, '%Y-%m-%d:%H')
-
-            date_and_time_show = date_and_time.strftime(format = "%d.%m.%Y %H:%M")
-            date_and_time_price = date_and_time.strftime(format = "%Y-%m-%d %H:%M:%S")
-            price = price.filter(like=date_and_time_price, axis=0)['Price_at_H+0'].iloc[0]
-            # problem: only one is returned of course
-            output = print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i]+ '\n\n Please use the device on the ' + date_and_time_show[0:10] + ' at ' + date_and_time_show[11:] + ' Uhr because it cost you only ' + str(price) + ' €.\n')
-            #
-            feature_importance_usage_device = recommendations_table['feature_importance_usage'].iloc[i]
-            print(i)
-            explaination_usage.append(self.Explainability_Agent.explanation_from_feature_importance_usage(feature_importance_usage_device, self.scaler_usage, diagnostics=False))
-
-            if (recommendations_table.no_recommend_flag_activity.iloc[i]==0 and recommendations_table.no_recommend_flag_usage.iloc[i]==0) == True:
-                return output, explaination_activity, explaination_usage
+                recommendations = True
             else:
-                return
+                recommendations = False
+
+        if recommendations == True:
+
+            #explaination for activity is same for all
+            feature_importance_activity = recommendations_table['feature_importance_activity'].iloc[0]
+
+            explaination_activity = self.Explainability_Agent.explanation_from_feature_importance_activity(feature_importance_activity, self.scaler_activity, diagnostics=self.diagnostics)
+            #print(explaination_activity)
+
+            output = []
+            explaination_usage = []
+            for i in range(len(recommendations_table)):
+                date_and_time = recommendations_table.recommendation_date.iloc[i] + ':' + str(recommendations_table.best_launch_hour.iloc[i])
+
+                date_and_time =  datetime.strptime(date_and_time, '%Y-%m-%d:%H')
+
+                date_and_time_show = date_and_time.strftime(format = "%d.%m.%Y %H:%M")
+                date_and_time_price = date_and_time.strftime(format = "%Y-%m-%d %H:%M:%S")
+                #price = price.filter(like=date_and_time_price, axis=0)['Price_at_H+0'].iloc[0]
+                price = None
+                # problem:  mit price muss noch gelöst werden
+                # Annika: hier weiter (vlt satz zu recommendation kürzen weil sowieso in Tabelle und nur savings rein?
+                output= print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i]+ '\n\n Please use the device on the ' + date_and_time_show[0:10] + ' at '+ date_and_time_show[11:] + ' Uhr because it cost you only ' + str(price) + ' €.\n')
+
+                feature_importance_usage_device = recommendations_table['feature_importance_usage'].iloc[i]
+                explaination_usage = self.Explainability_Agent.explanation_from_feature_importance_usage(feature_importance_usage_device, self.scaler_usage, diagnostics=self.diagnostics)
+                print(explaination_usage)
+
+            print(explaination_activity)
+
+            if self.diagnostics == False:
+                print('For detailed information switch on the diagnostics parameter.')
+            return
+
+        else:
+            print('There are no recommendations for today.')
+            return None
 
 # Performance Evaluation Agent
 # ===============================================================================================
@@ -2829,8 +2850,6 @@ class Performance_Evaluation_Agent:
 
 # Explainability Agent
 # ===============================================================================================
-# Explainability Agent
-# ===============================================================================================
 class Explainability_Agent:
     def __init__(self, model_activity, X_train_activity, X_test_activity, best_hour, model_usage,
                X_train_usage, X_test_usage,scaler_activity, scaler_usage, model_type="logit"):
@@ -3020,10 +3039,55 @@ class Explainability_Agent:
         self.scaler_usage= scaler_usage
         self.diagnostics = diagnostics
 
-        sentence_usage = 'We believe you are likely to use the device in the near future since'
-        explanation_sentence = sentence_usage
+        # check if really active in X_test otherwise put not active
+        #print(self.X_test_usage)
+        if self.X_test_usage['active_last_2_days'] == 0:
+            active_past = 'not'
+        else:
+            active_past = ''
 
-        #print(self.X_test_usage.iloc[self.best_hour])
+        FI_lag = np.argmax([feature_importance_usage.loc[0, 'feature_importance_vals'],
+                            feature_importance_usage.loc[1, 'feature_importance_vals']]) #feature_importance_usage['col_name'] == 'Dryer_usage_lag_2'
+
+        if FI_lag == 0:
+            device_usage = ""
+            number_days = 'day'
+        elif FI_lag == 1:
+            device_usage = ""
+            number_days = 'two days'
+        else:
+            device_usage = "not"
+            number_days = 'two days'
+
+        # weather:
+        # d = {'features': ['dwpt', 'rhum', 'temp', 'wdir', 'wspd'],
+        #      'labels': ['dewing point', 'relative humidity','temperature', 'wind direction', 'windspeed'],
+        #      'feature_importances' : [feature_importance_usage.loc[feature_importance_usage[
+        #                                                         'col_name'] == 'dwpt', 'feature_importance_vals'].to_numpy()[0],
+        #                           feature_importance_usage.loc[feature_importance_usage[
+        #                                                         'col_name'] == 'rhum', 'feature_importance_vals'].to_numpy()[0],
+        #                           feature_importance_usage.loc[feature_importance_usage[
+        #                                                         'col_name'] == 'temp', 'feature_importance_vals'].to_numpy()[0],
+        #                           feature_importance_usage.loc[feature_importance_usage[
+        #                                                               'col_name'] == 'wdir', 'feature_importance_vals'].to_numpy()[0],
+        #                           feature_importance_usage.loc[feature_importance_usage[
+        #                                                               'col_name'] == 'wspd', 'feature_importance_vals'].to_numpy()[0]],
+        #      'feature_values' : [self.X_test_usage['dwpt'], #.iloc[self.best_hour]
+        #                          self.X_test_usage['rhum'],
+        #                          self.X_test_usage['temp'],
+        #                          self.X_test_usage['wdir'],
+        #                          self.X_test_usage['wspd'],
+        #                          ]
+        #
+        #      }
+        # df = pd.DataFrame(data=d)
+        #
+        # weather1_ind = np.argmax(df['feature_importances'])
+
+
+        sentence_usage = f"We believe you are likely to use the device in the near future since you were {active_past} active the last 2 days and have {device_usage} used the device in " \
+                         f"the last {number_days}."
+        explanation_sentence = sentence_usage
 
         if self.diagnostics == True:
             print('Vizualizations for further insights into our predictions: ')
@@ -3031,18 +3095,6 @@ class Explainability_Agent:
 
         return explanation_sentence
 
-        #
-        # Usage Sentence:
-        # %%
-        #  active_last_2_days: wenn da FI wichtig genug ist: if in X_test 0 --> 'you were NOT active the last two days', X_test 1 --> 'you were active the last two days'
-        #  'you used the [device] the last [].
-        #     Dishwasher_usage_lag_2:
-        #     Dishwasher_usage_lag_1
-
-        # 'Additionally, the weather conditions support that recommendation'   #(add strongest weather)
-        #                      wdir
-        #                       wspd
-        #
 
 
 
