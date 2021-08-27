@@ -1761,7 +1761,7 @@ class Recommendation_Agent:
             #explaination for activity is same for all
             feature_importance_activity = recommendations_table['feature_importance_activity'].iloc[0]
 
-            explaination_activity = self.Explainability_Agent.explanation_from_feature_importance_activity(feature_importance_activity, self.scaler_activity, diagnostics=self.diagnostics)
+            explaination_activity = self.Explainability_Agent.explanation_from_feature_importance_activity(feature_importance_activity, diagnostics=self.diagnostics)
             #print(explaination_activity)
 
             output = []
@@ -1780,7 +1780,7 @@ class Recommendation_Agent:
                 output= print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i]+ '\n\n Please use the device on the ' + date_and_time_show[0:10] + ' at '+ date_and_time_show[11:] + ' Uhr because it cost you only ' + str(price) + ' €.\n')
 
                 feature_importance_usage_device = recommendations_table['feature_importance_usage'].iloc[i]
-                explaination_usage = self.Explainability_Agent.explanation_from_feature_importance_usage(feature_importance_usage_device, self.scaler_usage, diagnostics=self.diagnostics)
+                explaination_usage = self.Explainability_Agent.explanation_from_feature_importance_usage(feature_importance_usage_device, diagnostics=self.diagnostics)
                 print(explaination_usage)
 
             print(explaination_activity)
