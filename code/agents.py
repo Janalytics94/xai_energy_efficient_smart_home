@@ -1773,12 +1773,14 @@ class Recommendation_Agent:
 
                 date_and_time_show = date_and_time.strftime(format = "%d.%m.%Y %H:%M")
                 date_and_time_price = date_and_time.strftime(format = "%Y-%m-%d %H:%M:%S")
-                #price = price.filter(like=date_and_time_price, axis=0)['Price_at_H+0'].iloc[0]
-                price = None
-                # problem:  mit price muss noch gelöst werden
-                # Annika: hier weiter (vlt satz zu recommendation kürzen weil sowieso in Tabelle und nur savings rein?
-                output= print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i]+ '\n\n Please use the device on the ' + date_and_time_show[0:10] + ' at '+ date_and_time_show[11:] + ' Uhr because it cost you only ' + str(price) + ' €.\n')
 
+                price_rec = price.filter(like=date_and_time_price, axis=0)['Price_at_H+0'].iloc[0]
+                price_mean = price['Price_at_H+0'].sum() / 24
+                price_dif = price_rec / price_mean
+                price_savings_percentage = round((1 - price_dif) * 100, 2)
+
+                output = print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i] + '\n\n Please use the device on the ' + date_and_time_show[0:10] + ' at ' + date_and_time_show[11:] +
+                               ' oclock because it saves you ' + str(price_savings_percentage) + ' % of costs compared to the mean of the day.\n')
                 feature_importance_usage_device = recommendations_table['feature_importance_usage'].iloc[i]
                 explaination_usage = self.Explainability_Agent.explanation_from_feature_importance_usage(feature_importance_usage_device, diagnostics=self.diagnostics)
                 print(explaination_usage)
@@ -2662,6 +2664,7 @@ class Performance_Evaluation_Agent:
             dt = np.datetime64(date) + np.timedelta64(int(hour), "h")
             # getting the correct position for the load in the load array
             i = np.where(price_idx == dt)[0][0]
+            i = np.where(price_idx == dt)[0][0]
 
             # reshaping the load array and calculating the costs
             before = np.zeros(i)
@@ -3033,7 +3036,9 @@ class Explainability_Agent:
         # optional vizualizations
         if self.diagnostics == True:
             print('Vizualizations for further insights into our predictions: ')
-            print('add plots here')
+            print('plot for activity')
+            shap_plot_activity = shap.force_plot(self.explainer.expected_value[1], self.shap_values[1], self.X_test_activity.iloc[self.best_hour, :])
+
 
         return explanation_sentence
 
@@ -3062,34 +3067,41 @@ class Explainability_Agent:
             device_usage = "not"
             number_days = 'two days'
 
-        # weather:
-        # d = {'features': ['dwpt', 'rhum', 'temp', 'wdir', 'wspd'],
-        #      'labels': ['dewing point', 'relative humidity','temperature', 'wind direction', 'windspeed'],
-        #      'feature_importances' : [feature_importance_usage.loc[feature_importance_usage[
-        #                                                         'col_name'] == 'dwpt', 'feature_importance_vals'].to_numpy()[0],
-        #                           feature_importance_usage.loc[feature_importance_usage[
-        #                                                         'col_name'] == 'rhum', 'feature_importance_vals'].to_numpy()[0],
-        #                           feature_importance_usage.loc[feature_importance_usage[
-        #                                                         'col_name'] == 'temp', 'feature_importance_vals'].to_numpy()[0],
-        #                           feature_importance_usage.loc[feature_importance_usage[
-        #                                                               'col_name'] == 'wdir', 'feature_importance_vals'].to_numpy()[0],
-        #                           feature_importance_usage.loc[feature_importance_usage[
-        #                                                               'col_name'] == 'wspd', 'feature_importance_vals'].to_numpy()[0]],
-        #      'feature_values' : [self.X_test_usage['dwpt'], #.iloc[self.best_hour]
-        #                          self.X_test_usage['rhum'],
-        #                          self.X_test_usage['temp'],
-        #                          self.X_test_usage['wdir'],
-        #                          self.X_test_usage['wspd'],
-        #                          ]
-        #
-        #      }
-        # df = pd.DataFrame(data=d)
-        #
-        # weather1_ind = np.argmax(df['feature_importances'])
+        #weather:
+        d = {'features': ['dwpt', 'rhum', 'temp', 'wdir', 'wspd'],
+             'labels': ['dewing point', 'relative humidity','temperature', 'wind direction', 'windspeed'],
+             'feature_importances' : [feature_importance_usage.loc[feature_importance_usage[
+                                                                'col_name'] == 'dwpt', 'feature_importance_vals'].to_numpy()[0],
+                                  feature_importance_usage.loc[feature_importance_usage[
+                                                                'col_name'] == 'rhum', 'feature_importance_vals'].to_numpy()[0],
+                                  feature_importance_usage.loc[feature_importance_usage[
+                                                                'col_name'] == 'temp', 'feature_importance_vals'].to_numpy()[0],
+                                  feature_importance_usage.loc[feature_importance_usage[
+                                                                      'col_name'] == 'wdir', 'feature_importance_vals'].to_numpy()[0],
+                                  feature_importance_usage.loc[feature_importance_usage[
+                                                                      'col_name'] == 'wspd', 'feature_importance_vals'].to_numpy()[0]],
+             'feature_values' : [self.X_test_usage['dwpt'], #.iloc[self.best_hour]
+                                 self.X_test_usage['rhum'],
+                                 self.X_test_usage['temp'],
+                                 self.X_test_usage['wdir'],
+                                 self.X_test_usage['wspd'],
+                                 ]
+
+             }
+        df = pd.DataFrame(data=d)
+        print(df)
+
+        weather1_ind = np.argmax(df['feature_importances'])
+        weather1 = df['labels'][weather1_ind]
+        weather2 = None
+
+        value1 = df['feature_values'][weather1_ind]
+        value2 = None
 
 
         sentence_usage = f"We believe you are likely to use the device in the near future since you were {active_past} active the last 2 days and have {device_usage} used the device in " \
-                         f"the last {number_days}."
+                         f"the last {number_days}. " \
+                         f"The weather conditions ({weather1}:{value1}, {weather2}:{value2}) support that recommendation."
         explanation_sentence = sentence_usage
 
         if self.diagnostics == True:
