@@ -1996,6 +1996,8 @@ class X_Recommendation_Agent:
             explaination_activity = self.Explainability_Agent.explanation_from_feature_importance_activity(feature_importance_activity, date=date , best_hour=best_hour, diagnostics=self.diagnostics)
             #print(explaination_activity)
 
+            # hier if self.diagnostics == True
+
             output = []
             explaination_usage = []
             for i in range(len(recommendations_table)):
@@ -2014,8 +2016,12 @@ class X_Recommendation_Agent:
                 output = print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i] + '\n\n Please use the device on the ' + date_and_time_show[0:10] + ' at ' + date_and_time_show[11:] +
                                ' oclock because it saves you ' + str(price_savings_percentage) + ' % of costs compared to the mean of the day.\n')
                 feature_importance_usage_device = recommendations_table['feature_importance_usage'].iloc[i]
-                explaination_usage = self.Explainability_Agent.explanation_from_feature_importance_usage(feature_importance_usage_device,date=date, exdiagnostics=self.diagnostics)
+                explaination_usage = self.Explainability_Agent.explanation_from_feature_importance_usage(feature_importance_usage_device,date=date, diagnostics=self.diagnostics)
                 print(explaination_usage)
+
+                #hier if self.diagnostics == True
+
+
 
             print(explaination_activity)
 
@@ -3125,7 +3131,7 @@ class Explainability_Agent:
         else:
             raise InputError("Unknown model type.")
             
-        self.explainer_activity = self.explainer_activity
+        #self.explainer_activity = self.explainer_activity
 
         self.shap_values = self.explainer_activity.shap_values(
             self.X_test_activity.iloc[self.best_hour, :])
@@ -3164,7 +3170,7 @@ class Explainability_Agent:
         else:
             raise InputError("Unknown model type.")
             
-        self.explainer_usage = self.explainer_usage
+        #self.explainer_usage = self.explainer_usage
 
         self.shap_values_usage = self.explainer_usage.shap_values(
             self.X_test_usage)
