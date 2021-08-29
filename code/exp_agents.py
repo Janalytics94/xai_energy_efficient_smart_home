@@ -1719,7 +1719,7 @@ class Recommendation_Agent:
             date_and_time_show = date_and_time.strftime(format = "%d.%m.%Y %H:%M")
             date_and_time_price = date_and_time.strftime(format = "%Y-%m-%d %H:%M:%S")
             price = price.filter(like=date_and_time_price, axis=0)['Price_at_H+0'].iloc[0]
-            output = print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i]+ '\n\n Please use the device on the ' + date_and_time_show[0:10] + ' at ' + date_and_time_show[11:] + ' Uhr because it cost you only ' + str(price) + ' €.\n')
+            output = print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i]+ '\n\nPlease use the device on the ' + date_and_time_show[0:10] + ' at ' + date_and_time_show[11:] + ' oclock because it costs you only ' + str(price) + ' €.\n')
             if (recommendations_table.no_recommend_flag_activity.iloc[i]==0 and recommendations_table.no_recommend_flag_usage.iloc[i]==0) == True:
                 return output
             else:
@@ -1997,6 +1997,12 @@ class X_Recommendation_Agent:
             #print(explaination_activity)
 
             # hier if self.diagnostics == True
+            if self.diagnostics == True:
+                explainer_activity = recommendations_table[recommendations_table['device']=='Tumble Dryer']['explainer_activity'][0]
+                shap_values = recommendations_table[recommendations_table['device']=='Tumble Dryer']['shap_values'][0]
+                X_test_activity = recommendations_table[recommendations_table['device']=='Tumble Dryer']['X_test_activity'][0]
+                shap_plot_activity = shap.force_plot(explainer_activity.expected_value[1], shap_values[1], X_test_activity.iloc[best_hour, :])
+                display(shap_plot_activity)
 
             output = []
             explaination_usage = []
@@ -2013,15 +2019,18 @@ class X_Recommendation_Agent:
                 price_dif = price_rec / price_mean
                 price_savings_percentage = round((1 - price_dif) * 100, 2)
 
-                output = print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i] + '\n\n Please use the device on the ' + date_and_time_show[0:10] + ' at ' + date_and_time_show[11:] +
-                               ' oclock because it saves you ' + str(price_savings_percentage) + ' % of costs compared to the mean of the day.\n')
+                output = print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i] + '\n\nPlease use the device on the ' + date_and_time_show[0:10] + ' at ' + date_and_time_show[11:] + ' oclock because it saves you ' + str(price_savings_percentage) + ' % of costs compared to the mean of the day.\n')
                 feature_importance_usage_device = recommendations_table['feature_importance_usage'].iloc[i]
-                explaination_usage = self.Explainability_Agent.explanation_from_feature_importance_usage(feature_importance_usage_device,date=date, diagnostics=self.diagnostics)
+                explaination_usage = self.Explainability_Agent.explanation_from_feature_importance_usage(feature_importance_usage_device, date=date, diagnostics=self.diagnostics)
                 print(explaination_usage)
 
                 #hier if self.diagnostics == True
-
-
+                if self.diagnostics == True:
+                    explainer_usage = recommendations_table[recommendations_table['device']=='Tumble Dryer']['explainer_usage'][0]
+                    shap_values_usage = recommendations_table[recommendations_table['device']=='Tumble Dryer']['shap_values_usage'][0]
+                    X_test_usage = recommendations_table[recommendations_table['device']=='Tumble Dryer']['X_test_usage'][0]
+                    shap_plot_usage = shap.force_plot(explainer_usage.expected_value[1], shap_values_usage[1], X_test_usage)
+                    display(shap_plot_usage)
 
             print(explaination_activity)
 
@@ -3201,7 +3210,7 @@ class Explainability_Agent:
         #if feature_importance_activity['activity_lag_24'] or feature_importance_activity['activity_lag_48'] or feature_importance_activity['activity_lag_72'] !=0:
             # check if really active in X_test otherwise put not active
         if self.X_test_activity['activity_lag_24'].iloc[self.best_hour] and self.X_test_activity['activity_lag_48'].iloc[self.best_hour] and self.X_test_activity['activity_lag_72'].iloc[self.best_hour] ==0:
-            active_past = 'not'
+            active_past = 'not '
         else:
             active_past = ''
             # input the activity lag with the strongest feature importance
@@ -3268,7 +3277,7 @@ class Explainability_Agent:
         value2= round(df['feature_values'][weather2_ind],2)
 
         # final activity sentence
-        sentence_activity = (f"We believe you are active today since you were {active_past} active during the last {activity_lag}."
+        sentence_activity = (f"We believe you are active today since you were {active_past}active during the last {activity_lag}."
                              f"The weather conditions ({weather1}:{value1}, {weather2}:{value2}) support that recommendation.")
 
 
@@ -3276,10 +3285,10 @@ class Explainability_Agent:
         # optional vizualizations
         if self.diagnostics == True:
             print('Vizualizations for further insights into our predictions: ')
-            print('plot for activity')
+            #print('plot for activity')
             # not tried yet (you have to run it in jupyter)
-            shap_plot_activity = shap.force_plot(self.explainer_activity.expected_value[1], self.shap_values[1], self.X_test_activity.iloc[self.best_hour, :])
-            display(shap_plot_activity)
+            #shap_plot_activity = shap.force_plot(self.explainer_activity.expected_value[1], self.shap_values[1], self.X_test_activity.iloc[self.best_hour, :])
+            #display(shap_plot_activity)
 
 
         return explanation_sentence
@@ -3290,7 +3299,7 @@ class Explainability_Agent:
         self.diagnostics = diagnostics
 
         if self.X_test_usage['active_last_2_days'] == 0:
-            active_past = 'not'
+            active_past = 'not '
         else:
             active_past = ''
 
@@ -3304,7 +3313,7 @@ class Explainability_Agent:
             device_usage = ""
             number_days = 'two days'
         else:
-            device_usage = "not"
+            device_usage = "not "
             number_days = 'two days'
 
         #weather:
@@ -3345,16 +3354,16 @@ class Explainability_Agent:
         value2= round(df['feature_values'][weather2_ind],2)
 
 
-        sentence_usage = f"We believe you are likely to use the device in the near future since you were {active_past} active the last 2 days and have {device_usage} used the device in " \
+        sentence_usage = f"We believe you are likely to use the device in the near future since you were {active_past}active during the last 2 days and have {device_usage}used the device in " \
                          f"the last {number_days}. " \
                          f"The weather conditions ({weather1}:{value1}, {weather2}:{value2}) support that recommendation."
         explanation_sentence = sentence_usage
 
         if self.diagnostics == True:
             print('Vizualizations for further insights into our predictions: ')
-            print('add plots here')
-            shap_plot_usage = shap.force_plot(self.explainer_usage.expected_value[1], self.shap_values[1], self.X_test_usage)
-            display(shap_plot_usage)
+            #print('add plots here')
+            #shap_plot_usage = shap.force_plot(self.explainer_usage.expected_value[1], self.shap_values[1], self.X_test_usage)
+            #display(shap_plot_usage)
             
 
         return explanation_sentence
