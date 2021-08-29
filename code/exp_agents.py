@@ -1865,7 +1865,7 @@ class X_Recommendation_Agent:
                 explain = Explainability_Agent(model_activity, X_train_activity, X_test_activity,
                                                self.best_hour,model_usage,X_train_usage, X_test_usage,
                                                model_type= self.model_type)
-                feature_importance_activity, feature_importance_usage = explain.feature_importance()
+                feature_importance_activity, feature_importance_usage, explainer_activity, explainer_usage, shap_values, shap_values_usage, X_test_activity, X_test_usage = explain.feature_importance()
 
 
         return {
@@ -1881,6 +1881,12 @@ class X_Recommendation_Agent:
             ],
             "feature_importance_activity": [feature_importance_activity],
             "feature_importance_usage": [feature_importance_usage],
+            "explainer_activity": [explainer_activity],
+            "explainer_usage": [explainer_usage],
+            "shap_values": [shap_values],
+            "shap_values_usage": [shap_values_usage],
+            "X_test_activity": [X_test_activity],
+            "X_test_usage": [X_test_usage],
         }
 
     # visualize recommendation_by device
@@ -2008,7 +2014,7 @@ class X_Recommendation_Agent:
                 output = print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i] + '\n\n Please use the device on the ' + date_and_time_show[0:10] + ' at ' + date_and_time_show[11:] +
                                ' oclock because it saves you ' + str(price_savings_percentage) + ' % of costs compared to the mean of the day.\n')
                 feature_importance_usage_device = recommendations_table['feature_importance_usage'].iloc[i]
-                explaination_usage = self.Explainability_Agent.explanation_from_feature_importance_usage(feature_importance_usage_device,date=date, diagnostics=self.diagnostics)
+                explaination_usage = self.Explainability_Agent.explanation_from_feature_importance_usage(feature_importance_usage_device,date=date, exdiagnostics=self.diagnostics)
                 print(explaination_usage)
 
             print(explaination_activity)
@@ -3101,31 +3107,33 @@ class Explainability_Agent:
     def feature_importance(self):
         if self.model_type == "logit":
             X_train_summary = shap.kmeans(self.X_train_activity, 10)
-            explainer = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
+            self.explainer_activity = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
 
         elif self.model_type == "ada":
             X_train_summary = shap.kmeans(self.X_train_activity, 10)
-            explainer = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
+            self.explainer_activity = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
 
         elif self.model_type == "knn":
             X_train_summary = shap.kmeans(self.X_train_activity, 10)
-            explainer = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
+            self.explainer_activity = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
 
         elif self.model_type == "random forest":
-            explainer = shap.TreeExplainer(self.model_activity, self.X_train_activity)
+            self.explainer_activity = shap.TreeExplainer(self.model_activity, self.X_train_activity)
 
         elif self.model_type == "xgboost":
-            explainer = shap.TreeExplainer(self.model_activity, self.X_train_activity, model_output='predict_proba')
+            self.explainer_activity = shap.TreeExplainer(self.model_activity, self.X_train_activity, model_output='predict_proba')
         else:
             raise InputError("Unknown model type.")
+            
+        self.explainer_activity = self.explainer_activity
 
-        shap_values = explainer.shap_values(
+        self.shap_values = self.explainer_activity.shap_values(
             self.X_test_activity.iloc[self.best_hour, :])
 
         feature_names_activity = list(self.X_train_activity.columns.values)
         feature_names_activity
         # %%
-        vals_activity = np.abs(shap_values).mean(0)
+        vals_activity = np.abs(self.shap_values).mean(0)
         # %%
         feature_importance_activity = pd.DataFrame(list(zip(feature_names_activity, vals_activity)),
                                                    columns=['col_name', 'feature_importance_vals'])
@@ -3136,33 +3144,35 @@ class Explainability_Agent:
         if self.model_type == "logit":
             # option: apply kmeans first for faster computation
             X_train_summary = shap.kmeans(self.X_train_usage, 10)
-            explainer = shap.KernelExplainer(self.model_usage.predict_proba, X_train_summary)
+            self.explainer_usage = shap.KernelExplainer(self.model_usage.predict_proba, X_train_summary)
             # without kmeans:
-            # explainer = shap.KernelExplainer(model.predict_proba, X_train)
+            # self.explainer_usage = shap.KernelExplainer(model.predict_proba, X_train)
 
         elif self.model_type == "ada":
             X_train_summary = shap.kmeans(self.X_train_usage, 10)
-            explainer = shap.KernelExplainer(self.model_usage.predict_proba, X_train_summary)
+            self.explainer_usage = shap.KernelExplainer(self.model_usage.predict_proba, X_train_summary)
 
         elif self.model_type == "knn":
             X_train_summary = shap.kmeans(self.X_train_usage, 10)
-            explainer = shap.KernelExplainer(self.model_usage.predict_proba, X_train_summary)
+            self.explainer_usage = shap.KernelExplainer(self.model_usage.predict_proba, X_train_summary)
 
         elif self.model_type == "random forest":
-            explainer = shap.TreeExplainer(self.model_usage, self.X_train_usage)
+            self.explainer_usage = shap.TreeExplainer(self.model_usage, self.X_train_usage)
 
         elif self.model_type == "xgboost":
-            explainer = shap.TreeExplainer(self.model_usage, self.X_train_usage, model_output='predict_proba')
+            self.explainer_usage = shap.TreeExplainer(self.model_usage, self.X_train_usage, model_output='predict_proba')
         else:
             raise InputError("Unknown model type.")
+            
+        self.explainer_usage = self.explainer_usage
 
-        shap_values_usage = explainer.shap_values(
+        self.shap_values_usage = self.explainer_usage.shap_values(
             self.X_test_usage)
 
         feature_names_usage = list(self.X_train_usage.columns.values)
         feature_names_usage
         # %%
-        vals = np.abs(shap_values_usage).mean(0)
+        vals = np.abs(self.shap_values_usage).mean(0)
         # vals = shap_values[1]
         # %%
         feature_importance_usage = pd.DataFrame(list(zip(feature_names_usage, vals)),
@@ -3170,7 +3180,7 @@ class Explainability_Agent:
         feature_importance_usage.sort_values(by=['feature_importance_vals'], ascending=False, inplace=True)
         feature_importance_usage
 
-        return feature_importance_activity, feature_importance_usage
+        return feature_importance_activity, feature_importance_usage, self.explainer_activity, self.explainer_usage, self.shap_values, self.shap_values_usage, self.X_test_activity, self.X_test_usage
 
     def explanation_from_feature_importance_activity(self, feature_importance_activity, date, best_hour, diagnostics=False):
         self.feature_importance_activity = feature_importance_activity
@@ -3262,7 +3272,8 @@ class Explainability_Agent:
             print('Vizualizations for further insights into our predictions: ')
             print('plot for activity')
             # not tried yet (you have to run it in jupyter)
-            #shap_plot_activity = shap.force_plot(self.explainer.expected_value[1], self.shap_values[1], self.X_test_activity.iloc[self.best_hour, :])
+            shap_plot_activity = shap.force_plot(self.explainer_activity.expected_value[1], self.shap_values[1], self.X_test_activity.iloc[self.best_hour, :])
+            display(shap_plot_activity)
 
 
         return explanation_sentence
@@ -3336,6 +3347,9 @@ class Explainability_Agent:
         if self.diagnostics == True:
             print('Vizualizations for further insights into our predictions: ')
             print('add plots here')
+            shap_plot_usage = shap.force_plot(self.explainer_usage.expected_value[1], self.shap_values[1], self.X_test_usage)
+            display(shap_plot_usage)
+            
 
         return explanation_sentence
 
