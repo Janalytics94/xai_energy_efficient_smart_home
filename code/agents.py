@@ -1817,6 +1817,7 @@ class X_Recommendation_Agent:
             else:
                 activity_probs, X_train_activity, X_test_activity, model_activity = self.Activity_Agent.pipeline_xai(
                     self.activity_input, date, self.model_type, split_params, weather_sel=False)
+
         else:
             # get activity probs for date
             activity_probs = evaluation["activity"][date]
@@ -1826,6 +1827,7 @@ class X_Recommendation_Agent:
         activity_probs = np.where(activity_probs >= activity_prob_threshold, 1, float("Inf"))
 
         # add a flag in case all hours have likelihood smaller than threshold
+        #print(activity_probs)
         no_recommend_flag_activity = 0
         if np.min(activity_probs) == float("Inf"):
             no_recommend_flag_activity = 1
@@ -1843,6 +1845,7 @@ class X_Recommendation_Agent:
                 #usage_prob = self.Usage_Agent[device].pipeline(self.usage_input, date, self.model_type, split_params["train_start"])
                 usage_prob, X_train_usage, X_test_usage, model_usage = self.Usage_Agent[device].pipeline_xai(
                 self.usage_input, date,self.model_type, split_params["train_start"], weather_sel=False)
+
         else:
             # get usage probs
             name = ("usage_" + device.replace(" ", "_").replace("(", "").replace(")", "").lower())
@@ -1853,19 +1856,19 @@ class X_Recommendation_Agent:
         if usage_prob < usage_prob_threshold:
             no_recommend_flag_usage = 1
 
-        if no_recommend_flag_activity == 0 and no_recommend_flag_usage == 0:
+        #if no_recommend_flag_activity == 0 and no_recommend_flag_usage == 0:
                 #self.X_train_activity = X_train_activity
                 #self.X_test_activity = X_test_activity
                 #self.model_activity = model_activity
                 #self.best_hour = best_hour
-                self.Explainability_Agent = Explainability_Agent(model_activity, X_train_activity, X_test_activity, self.best_hour, model_usage,
-                X_train_usage, X_test_usage, model_type=self.model_type)
+        self.Explainability_Agent = Explainability_Agent(model_activity, X_train_activity, X_test_activity, self.best_hour, model_usage,
+        X_train_usage, X_test_usage, model_type=self.model_type)
 
-                #print('Going to the explanation now:')
-                explain = Explainability_Agent(model_activity, X_train_activity, X_test_activity,
-                                               self.best_hour,model_usage,X_train_usage, X_test_usage,
-                                               model_type= self.model_type)
-                feature_importance_activity, feature_importance_usage, explainer_activity, explainer_usage, shap_values, shap_values_usage, X_test_activity, X_test_usage = explain.feature_importance()
+        #print('Going to the explanation now:')
+        explain = Explainability_Agent(model_activity, X_train_activity, X_test_activity,
+                                       self.best_hour,model_usage,X_train_usage, X_test_usage,
+                                       model_type= self.model_type)
+        feature_importance_activity, feature_importance_usage, explainer_activity, explainer_usage, shap_values, shap_values_usage, X_test_activity, X_test_usage = explain.feature_importance()
 
 
         return {
@@ -2007,30 +2010,37 @@ class X_Recommendation_Agent:
             output = []
             explaination_usage = []
             for i in range(len(recommendations_table)):
-                date_and_time = recommendations_table.recommendation_date.iloc[i] + ':' + str(recommendations_table.best_launch_hour.iloc[i])
 
-                date_and_time =  datetime.strptime(date_and_time, '%Y-%m-%d:%H')
+                if (recommendations_table.no_recommend_flag_activity.iloc[i] == 0 and
+                recommendations_table.no_recommend_flag_usage.iloc[i] == 0) == True:
 
-                date_and_time_show = date_and_time.strftime(format = "%d.%m.%Y %H:%M")
-                date_and_time_price = date_and_time.strftime(format = "%Y-%m-%d %H:%M:%S")
+                    date_and_time = recommendations_table.recommendation_date.iloc[i] + ':' + str(recommendations_table.best_launch_hour.iloc[i])
 
-                price_rec = price.filter(like=date_and_time_price, axis=0)['Price_at_H+0'].iloc[0]
-                price_mean = price['Price_at_H+0'].sum() / 24
-                price_dif = price_rec / price_mean
-                price_savings_percentage = round((1 - price_dif) * 100, 2)
+                    date_and_time =  datetime.strptime(date_and_time, '%Y-%m-%d:%H')
 
-                output = print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i] + '\n\nPlease use the device on the ' + date_and_time_show[0:10] + ' at ' + date_and_time_show[11:] + ' oclock because it saves you ' + str(price_savings_percentage) + ' % of costs compared to the mean of the day.\n')
-                feature_importance_usage_device = recommendations_table['feature_importance_usage'].iloc[i]
-                explaination_usage = self.Explainability_Agent.explanation_from_feature_importance_usage(feature_importance_usage_device, date=date, diagnostics=self.diagnostics)
-                print(explaination_usage)
+                    date_and_time_show = date_and_time.strftime(format = "%d.%m.%Y %H:%M")
+                    date_and_time_price = date_and_time.strftime(format = "%Y-%m-%d %H:%M:%S")
 
-                #hier if self.diagnostics == True
-                if self.diagnostics == True:
-                    explainer_usage = recommendations_table[recommendations_table['device']=='Tumble Dryer']['explainer_usage'][0]
-                    shap_values_usage = recommendations_table[recommendations_table['device']=='Tumble Dryer']['shap_values_usage'][0]
-                    X_test_usage = recommendations_table[recommendations_table['device']=='Tumble Dryer']['X_test_usage'][0]
-                    shap_plot_usage = shap.force_plot(explainer_usage.expected_value[1], shap_values_usage[1], X_test_usage)
-                    display(shap_plot_usage)
+                    price_rec = price.filter(like=date_and_time_price, axis=0)['Price_at_H+0'].iloc[0]
+                    price_mean = price['Price_at_H+0'].sum() / 24
+                    price_dif = price_rec / price_mean
+                    price_savings_percentage = round((1 - price_dif) * 100, 2)
+
+                    output = print('You have a recommendation for the following device: ' + recommendations_table.device.iloc[i] + '\n\nPlease use the device on the ' + date_and_time_show[0:10] + ' at ' + date_and_time_show[11:] + " o'clock because it saves you " + str(price_savings_percentage) + ' % of costs compared to the mean of the day.\n')
+                    feature_importance_usage_device = recommendations_table['feature_importance_usage'].iloc[i]
+                    explaination_usage = self.Explainability_Agent.explanation_from_feature_importance_usage(feature_importance_usage_device, date=date, diagnostics=self.diagnostics)
+                    print(explaination_usage)
+
+                    #hier if self.diagnostics == True
+                    if self.diagnostics == True:
+                        explainer_usage = recommendations_table[recommendations_table['device']=='Tumble Dryer']['explainer_usage'][0]
+                        shap_values_usage = recommendations_table[recommendations_table['device']=='Tumble Dryer']['shap_values_usage'][0]
+                        X_test_usage = recommendations_table[recommendations_table['device']=='Tumble Dryer']['X_test_usage'][0]
+                        shap_plot_usage = shap.force_plot(explainer_usage.expected_value[1], shap_values_usage[1], X_test_usage)
+                        display(shap_plot_usage)
+
+                else:
+                    print('There is no recommendation for the device ' + recommendations_table.device.iloc[i] + ' .')
 
             print(explaination_activity)
 
