@@ -1996,14 +1996,6 @@ class X_Recommendation_Agent:
             explaination_activity = self.Explainability_Agent.explanation_from_feature_importance_activity(feature_importance_activity, date=date , best_hour=best_hour, diagnostics=self.diagnostics)
             #print(explaination_activity)
 
-            # hier if self.diagnostics == True
-            if self.diagnostics == True:
-                explainer_activity = recommendations_table[recommendations_table['device']=='Tumble Dryer']['explainer_activity'][0]
-                shap_values = recommendations_table[recommendations_table['device']=='Tumble Dryer']['shap_values'][0]
-                X_test_activity = recommendations_table[recommendations_table['device']=='Tumble Dryer']['X_test_activity'][0]
-                shap_plot_activity = shap.force_plot(explainer_activity.expected_value[1], shap_values[1], X_test_activity.iloc[best_hour, :])
-                display(shap_plot_activity)
-
             output = []
             explaination_usage = []
             for i in range(len(recommendations_table)):
@@ -2026,13 +2018,20 @@ class X_Recommendation_Agent:
 
                 #hier if self.diagnostics == True
                 if self.diagnostics == True:
-                    explainer_usage = recommendations_table[recommendations_table['device']=='Tumble Dryer']['explainer_usage'][0]
-                    shap_values_usage = recommendations_table[recommendations_table['device']=='Tumble Dryer']['shap_values_usage'][0]
-                    X_test_usage = recommendations_table[recommendations_table['device']=='Tumble Dryer']['X_test_usage'][0]
+                    explainer_usage = recommendations_table['explainer_usage'].iloc[i]
+                    shap_values_usage = recommendations_table['shap_values_usage'].iloc[i]
+                    X_test_usage = recommendations_table['X_test_usage'].iloc[i]
                     shap_plot_usage = shap.force_plot(explainer_usage.expected_value[1], shap_values_usage[1], X_test_usage)
                     display(shap_plot_usage)
 
             print(explaination_activity)
+            
+            if self.diagnostics == True:
+                explainer_activity = recommendations_table[recommendations_table['device']=='Tumble Dryer']['explainer_activity'][0]
+                shap_values = recommendations_table[recommendations_table['device']=='Tumble Dryer']['shap_values'][0]
+                X_test_activity = recommendations_table[recommendations_table['device']=='Tumble Dryer']['X_test_activity'][0]
+                shap_plot_activity = shap.force_plot(explainer_activity.expected_value[1], shap_values[1], X_test_activity.iloc[best_hour, :])
+                display(shap_plot_activity)
 
             if self.diagnostics == False:
                 print('For detailed information switch on the diagnostics parameter.')
@@ -3250,7 +3249,7 @@ class Explainability_Agent:
         explanation_sentence = sentence + sentence_activity
         # optional vizualizations
         if self.diagnostics == True:
-            print('Vizualizations for further insights into our predictions: ')
+            print('Visualizations for further insights into our predictions: ')
             #print('plot for activity')
             # not tried yet (you have to run it in jupyter)
             #shap_plot_activity = shap.force_plot(self.explainer_activity.expected_value[1], self.shap_values[1], self.X_test_activity.iloc[self.best_hour, :])
