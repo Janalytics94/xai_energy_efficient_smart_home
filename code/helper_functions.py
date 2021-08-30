@@ -47,68 +47,6 @@ class Helper:
             columns.update({house: cols})
         return columns
 
-
-    def save_weather(self, REFIT_dir = '../data/', house_id = 3, EXPORT_PATH = '../export/'):
-
-        data_sets = {id: f'CLEAN_House{id}.csv' for id in range(1, 4)}
-        filename = REFIT_dir + data_sets[house_id]
-
-        readme = REFIT_dir + 'REFIT_Readme.txt'
-        columns = self.get_column_labels(readme)
-
-        house = pd.read_csv(filename)
-        house.rename(columns=columns[house_id], inplace=True)
-        house.set_index(pd.DatetimeIndex(house['Time']), inplace=True)
-
-        # Add Weather
-        ################################
-        from meteostat import Point, Hourly
-        from datetime import datetime
-
-        lough = Point(52.766593, -1.223511)
-        time = house.index.to_series(name="time")
-        time = time.dt.floor('H').tolist()
-        start_time = time[0]
-        end_time = time[len(house) - 1]
-        weather = Hourly(lough, start_time, end_time)
-        weather = weather.fetch()
-
-        from sklearn.impute import KNNImputer
-        from sklearn.preprocessing import MinMaxScaler
-        import numpy as np
-
-        headers = weather.columns.values
-
-        empty_train_columns = []
-        for col in weather.columns.values:
-            if sum(weather[col].isnull()) == weather.shape[0]:
-                empty_train_columns.append(col)
-        headers = np.setdiff1d(headers, empty_train_columns)
-
-        imputer = KNNImputer(missing_values=np.nan, n_neighbors=7, weights="distance")
-        weather = imputer.fit_transform(weather)
-        weather = pd.DataFrame(weather)
-        time_unique = pd.date_range(start_time, end_time, freq='h')
-        weather["time"] = time_unique
-        house["time"] = time
-
-        weather.columns = np.append(headers, "time")
-
-        house = pd.merge(house, weather, how="left", on="time")
-        house.drop("time", axis=1, inplace=True)
-        house.set_index(pd.DatetimeIndex(house['Time']), inplace=True)
-        ################################
-
-        # Daily
-        # params = {"resample_param": "24H"}
-        daily_weather = house.resample("24H").mean().copy()
-        daily_weather.to_pickle(EXPORT_PATH + "weather_unscaled_daily.pkl")
-        # Hourly
-        # params = {"resample_param": "60T"}
-        hourly_weather = house.resample("60T").mean().copy()
-        hourly_weather.to_pickle(EXPORT_PATH + "weather_unscaled_hourly.pkl")
-
-
     def load_household(self, REFIT_dir, house_id, weather_sel=False):
 
         data_sets = {id:f'CLEAN_House{id}.csv' for id in range(1,4)}
