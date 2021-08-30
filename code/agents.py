@@ -3073,7 +3073,7 @@ class Explainability_Agent:
 
         elif self.model_type == "random forest":
             X_train_summary = shap.sample(self.X_train_activity, 100)
-            explainer = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
+            self.explainer_activity = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
 
         elif self.model_type == "xgboost":
             self.explainer_activity = shap.TreeExplainer(self.model_activity, self.X_train_activity, model_output='predict_proba')
@@ -3108,7 +3108,7 @@ class Explainability_Agent:
 
         elif self.model_type == "random forest":
             X_train_summary = shap.sample(self.X_train_usage, 100)
-            self.explainer_usage = shap.TreeExplainer(self.model_usage.predict_proba, self.X_train_usage)
+            self.explainer_usage = shap.KernelExplainer(self.model_usage.predict_proba, X_train_summary)
 
         elif self.model_type == "xgboost":
             self.explainer_usage = shap.TreeExplainer(self.model_usage, self.X_train_usage, model_output='predict_proba')
