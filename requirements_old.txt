@@ -1,0 +1,15 @@
+interpret
+lime
+matplotlib
+meteostat==1.5.7
+pandas
+pyaml
+scikit-image
+scikit-learn
+scipy
+seaborn
+shap
+statsmodels
+tensorflow
+tqdm
+xgboost
