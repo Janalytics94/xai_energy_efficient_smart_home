@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import time
 import pandas as pd
-
 from sklearn.preprocessing import MinMaxScaler
 from tqdm import tqdm
 from helper_functions import Helper
@@ -9,9 +8,6 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import shap as shap
 import numpy as np
-
-# import statsmodels.api as sm
-# import statsmodels
 import xgboost as xgb
 import xgboost
 import multiprocessing
@@ -24,12 +20,7 @@ from sklearn.linear_model import LogisticRegression
 
 # Glasbox Model 
 import interpret
-from interpret.glassbox.ebm.ebm import ExplainableBoostingClassifier 
-
-# Input Error
-# ==============================================================================================
-class InputError(Exception):
-    pass
+from interpret.glassbox.ebm.ebm import ExplainableBoostingClassifier
 
 # Preparation Agent
 # ===============================================================================================
@@ -451,9 +442,8 @@ class Activity_Agent:
         return AdaBoostClassifier(learning_rate=learning_rate, n_estimators=n_estimators).fit(X, y)
 
     def fit_XGB(self, X, y, learning_rate=0.1, max_depth=6, reg_lambda=1, reg_alpha=0):
-        return xgb.XGBClassifier(verbosity=0, use_label_encoder=False, learning_rate=learning_rate, max_depth=max_depth, reg_lambda=reg_lambda, reg_alpha=reg_alpha).fit(X, y)  # changed to dismiss warning
+        return xgb.XGBClassifier(verbosity=0, use_label_encoder=False, learning_rate=learning_rate, max_depth=max_depth, reg_lambda=reg_lambda, reg_alpha=reg_alpha).fit(X, y)
 
-    # Add Glasbox model that includes global and local explanability without Lime and SHAP
     def fit_EBM(self, X, y):
         return ExplainableBoostingClassifier().fit(X,y)
 
@@ -586,7 +576,6 @@ class Activity_Agent:
 
             df = pd.merge(df, weather, how="right", on="time")
             df = df.set_index("time")
-            # df.drop("time", axis=1, inplace=True)
             ################################
         if not xai:
             for date in tqdm(dates):
@@ -599,7 +588,6 @@ class Activity_Agent:
                     # fit model
                     model = self.fit(X_train, y_train, model_type, **args)
 
-                    # self.predict uses predict_proba i.e. we get probability estimates and not classes
                     y_hat_train.update({date: self.predict(model, X_train)})
                     y_hat_test += list(self.predict(model, X_test))
 
@@ -647,7 +635,6 @@ class Activity_Agent:
                         explainer = lime.lime_tabular.LimeTabularExplainer(X_train.values,
                                                                            feature_names=X_train.columns,
                                                                            kernel_width=3, verbose=False)
-                        #print(explainer)
 
 
                     else:
@@ -702,12 +689,12 @@ class Activity_Agent:
 
                     base_value = explainer.expected_value[1]  # the mean prediction
 
-                    for local in range(len(X_test)):  # replace 3 with when is works: len(X_test)
+                    for local in range(len(X_test)):
 
                         shap_values = explainer.shap_values(
                             X_test.iloc[local, :])
 
-                        contribution_to_class_1 = np.array(shap_values).sum(axis=1)[1]  # the red part of the diagram
+                        contribution_to_class_1 = np.array(shap_values).sum(axis=1)[1]
                         shap_prediction = base_value + contribution_to_class_1
 
                         # Prediction from XAI:
@@ -718,7 +705,6 @@ class Activity_Agent:
                     end_time = time.time()
                     difference_time = end_time - start_time
                     xai_time_shap.append(difference_time)
-                    #print(xai_time_shap)
 
                 except Exception as e:
                     errors[date] = e
@@ -780,7 +766,6 @@ class Activity_Agent:
 
             df = pd.merge(df, weather, how="right", on="time")
             df = df.set_index("time")
-            # df.drop("time", axis=1, inplace=True)
             ################################
 
         # train test split
@@ -834,7 +819,7 @@ class Activity_Agent:
 
             df = pd.merge(df, weather, how="right", on="time")
             df = df.set_index("time")
-            # df.drop("time", axis=1, inplace=True)
+
             ################################
 
         # train test split
@@ -898,7 +883,7 @@ class Load_Agent:
 
         for idx, appliance in enumerate(
             shiftable_devices
-        ):  # delete enumerate if we do not need integers indexes of devices
+        ):
             df_hours[appliance] = pd.DataFrame(index=None, columns=hours)
             column = df[appliance]
 
@@ -958,7 +943,6 @@ class Load_Agent:
 
         tqdm.pandas()
 
-        # true_loads = self.get_true_loads(shiftable_devices)
         if metric == "mse":
             import sklearn.metrics
 
@@ -1013,7 +997,6 @@ class Load_Agent:
     # pipeline function: creating typical load profiles
     # -------------------------------------------------------------------------------------------
     def pipeline(self, df, date, shiftable_devices):
-        # kann mann dann self benutzen?
         df = self.prove_start_end_date(df, date)
         df = self.df_yesterday_date(df, date)
         df_hours = self.load_profile_raw(df, shiftable_devices)
@@ -1100,7 +1083,7 @@ class Usage_Agent:
         return AdaBoostClassifier(learning_rate=learning_rate, n_estimators=n_estimators).fit(X, y)
 
     def fit_XGB(self, X, y, learning_rate=0.1, max_depth=6, reg_lambda=1, reg_alpha=0):
-        return xgb.XGBClassifier(verbosity=0, use_label_encoder=False, learning_rate=learning_rate, max_depth=max_depth, reg_lambda=reg_lambda, reg_alpha=reg_alpha).fit(X, y)  # changed to dismiss warning
+        return xgb.XGBClassifier(verbosity=0, use_label_encoder=False, learning_rate=learning_rate, max_depth=max_depth, reg_lambda=reg_lambda, reg_alpha=reg_alpha).fit(X, y)
 
     # Add Glasbox model that includes global and local explanability without Lime and SHAP
     def fit_EBM(self, X, y):
@@ -1225,7 +1208,7 @@ class Usage_Agent:
 
             df = pd.merge(df, weather, how="right", on="time")
             df = df.set_index("time")
-            # df.drop("time", axis=1, inplace=True)
+
             ################################
 
         if not xai:
@@ -1287,11 +1270,6 @@ class Usage_Agent:
                                                                       feature_names=X_train.columns,
                                                                       categorical_features=[0])
 
-                    # optional to do: only select the instances that are predicted to be 1
-
-                    #for local in range(len(X_test)): Does not work for usage as we only get one prediction
-
-                    # still predict_proba since also used in other function: treshold dependent outcome
                     if model_type == "xgboost":
                         exp = explainer.explain_instance(X_test, model.predict_proba)
                     else:
@@ -1337,7 +1315,6 @@ class Usage_Agent:
 
                     shap_values = explainer.shap_values(
                         X_test)
-                    # hier theoretisch ganzes test set prediction statt for loop möglich
                     contribution_to_class_1 = np.array(shap_values).sum(axis=1)[1]  # the red part of the diagram
                     shap_prediction = base_value + contribution_to_class_1
                     # Prediction from XAI:
@@ -1348,7 +1325,6 @@ class Usage_Agent:
                     end_time = time.time()
                     difference_time = end_time - start_time
                     xai_time_shap.append(difference_time)
-                    #print(xai_time_shap)
 
                 except Exception as e:
                     errors[date] = e
@@ -1410,7 +1386,6 @@ class Usage_Agent:
 
             df = pd.merge(df, weather, how="right", on="time")
             df = df.set_index("time")
-            # df.drop("time", axis=1, inplace=True)
             ################################
 
         X_train, y_train, X_test, y_test = self.train_test_split(df, date, train_start)
@@ -1458,7 +1433,6 @@ class Usage_Agent:
 
             df = pd.merge(df, weather, how="right", on="time")
             df = df.set_index("time")
-            # df.drop("time", axis=1, inplace=True)
             ################################
 
         X_train, y_train, X_test, y_test = self.train_test_split(df, date, train_start)
@@ -1466,7 +1440,7 @@ class Usage_Agent:
         return self.predict(model, X_test), X_train, X_test, model
 
 
-# Recommendation Agent
+# The Original Recommendation Agent
 # ===============================================================================================
 class Recommendation_Agent:
     def __init__(
@@ -1476,7 +1450,6 @@ class Recommendation_Agent:
         self.load_input = load_input
         self.price_input = price_input
         self.shiftable_devices = shiftable_devices
-        #self.model_type = model_type
         self.Activity_Agent = Activity_Agent(activity_input)
         # create dicionnary with Usage_Agent for each device
         self.Usage_Agent = {
@@ -1776,7 +1749,6 @@ class X_Recommendation_Agent:
         # compute activity probabilities
         if not evaluation:
             if weather_sel:
-                #activity_probs = self.Activity_Agent.pipeline(self.activity_input, date, 'logit', split_params, weather_sel=True)
                 activity_probs, X_train_activity, X_test_activity, model_activity = self.Activity_Agent.pipeline_xai(
                     self.activity_input, date, self.model_type, split_params, weather_sel=True)
             else:
@@ -1801,11 +1773,9 @@ class X_Recommendation_Agent:
         # compute likelihood of usage:
         if not evaluation:
             if weather_sel:
-                #usage_prob = self.Usage_Agent[device].pipeline(self.usage_input, date, self.model_type, split_params["train_start"])
                 usage_prob, X_train_usage, X_test_usage, model_usage = self.Usage_Agent[device].pipeline_xai(
                     self.usage_input, date,self.model_type, split_params["train_start"], weather_sel=True)
             else:
-                #usage_prob = self.Usage_Agent[device].pipeline(self.usage_input, date, self.model_type, split_params["train_start"])
                 usage_prob, X_train_usage, X_test_usage, model_usage = self.Usage_Agent[device].pipeline_xai(
                 self.usage_input, date,self.model_type, split_params["train_start"], weather_sel=False)
         else:
@@ -1818,15 +1788,9 @@ class X_Recommendation_Agent:
         if usage_prob < usage_prob_threshold:
             no_recommend_flag_usage = 1
 
-        #if no_recommend_flag_activity == 0 and no_recommend_flag_usage == 0:
-                #self.X_train_activity = X_train_activity
-                #self.X_test_activity = X_test_activity
-                #self.model_activity = model_activity
-                #self.best_hour = best_hour
         self.Explainability_Agent = Explainability_Agent(model_activity, X_train_activity, X_test_activity, self.best_hour, model_usage,
         X_train_usage, X_test_usage, model_type=self.model_type)
 
-        #print('Going to the explanation now:')
         explain = Explainability_Agent(model_activity, X_train_activity, X_test_activity,
                                        self.best_hour,model_usage,X_train_usage, X_test_usage,
                                        model_type= self.model_type)
@@ -1943,7 +1907,6 @@ class X_Recommendation_Agent:
     def visualize_recommendation(self, recommendations_table, price, diagnostics=False):
         self.diagnostics = diagnostics
 
-        # problem: explanaton nur wenn auch flag 0 und activity nur einmal
         for r in range(len(recommendations_table)):
             if (recommendations_table.no_recommend_flag_activity.iloc[r] == 0 and
                 recommendations_table.no_recommend_flag_usage.iloc[r] == 0) == True:
@@ -1954,12 +1917,10 @@ class X_Recommendation_Agent:
 
         if recommendations == True:
 
-            #explaination for activity is same for all
             feature_importance_activity = recommendations_table['feature_importance_activity'].iloc[0]
             date = recommendations_table.recommendation_date.iloc[0]
             best_hour = recommendations_table.best_launch_hour.iloc[0]
             explaination_activity = self.Explainability_Agent.explanation_from_feature_importance_activity(feature_importance_activity, date=date , best_hour=best_hour, diagnostics=self.diagnostics)
-            #print(explaination_activity)
 
             output = []
             explaination_usage = []
@@ -2015,7 +1976,7 @@ class X_Recommendation_Agent:
             print('There are no recommendations for today.')
             return None
 
-# Evaluation Agent
+# Original Evaluation Agent
 # ===============================================================================================
 class Evaluation_Agent:
     def __init__(self, DATA_PATH, model_type, config, load_data=True, load_files=None, weather_sel=False, xai = False):
@@ -2053,7 +2014,6 @@ class Evaluation_Agent:
         self.agent_predictions_list_activity = {}
         self.agent_predictions_list_usage = {}
         self.cold_start_scores = {}
-        # self.true_loads = None
         self.results = {}
         self.cold_start_days = pd.DataFrame()
         if load_files != None:
@@ -2161,7 +2121,7 @@ class Evaluation_Agent:
             "time": {"features": ["hour", "day_name"]},
             "activity_lag": {"features": ["activity"], "lags": [24, 48, 72]},
         }
-        ## preparation: usage agent
+        # preparation: usage agent
         self.config["preparation"]["usage"] = {
             "truncate": {"features": "all", "factor": 1.5, "verbose": 0},
             "scale": {"features": "all", "kind": "MinMax", "verbose": 0},
@@ -2175,7 +2135,7 @@ class Evaluation_Agent:
             "shiftable_devices": deepcopy(self.config["user_input"]["shiftable_devices"]),
             "device": {"threshold": deepcopy(self.config["user_input"]["threshold"])},
         }
-        ## preparation: load agent
+        # preparation: load agent
         self.config["preparation"]["load"] = {
             "truncate": {"features": "all", "factor": 1.5, "verbose": 0},
             "scale": {"features": "all", "kind": "MinMax", "verbose": 0},
@@ -2191,7 +2151,7 @@ class Evaluation_Agent:
             self.init_agents()
         self._get_dates()
         self.config["activity"] = {
-            "model_type": self.model_type,#["random forest", "knn", "ada"],#"xgboost"
+            "model_type": self.model_type,
             "split_params": {
                 "train_start": deepcopy(self.config["data"]["start_dates"]["activity"]),
                 "test_delta": {"days": 1, "seconds": -1},
@@ -2216,7 +2176,7 @@ class Evaluation_Agent:
             self.init_agents()
         self._get_dates()
         self.config["usage"] = {
-            "model_type":  self.model_type, #["random forest", "knn", "ada"],
+            "model_type":  self.model_type,
             "train_start": deepcopy(self.config["data"]["start_dates"]["usage"]),
         }
         for device in self.config["user_input"]["shiftable_devices"]:
@@ -2414,15 +2374,13 @@ class Evaluation_Agent:
                 scores['activity_auc'] = auc_test_activity
                 scores['time_mean_lime_activity'] = time_mean_lime_activity
                 scores['time_mean_shap_activity'] = time_mean_shap_activity
-                #print(scores)
-                #print(predictions_list_activity)
+
             if agent_type == 'usage':
                 _, auc_test_usage, _, time_mean_lime_usage, time_mean_shap_usage, predictions_list_usage = self[agent].evaluate(self[agent].input, **self.config[agent], xai=self.xai, **args)
                 scores['usage_auc'][self[agent].device] = auc_test_usage
                 scores['time_mean_lime_usage'] = time_mean_lime_usage
                 scores['time_mean_shap_usage'] = time_mean_shap_usage
-                #print(scores)
-                #print(predictions_list_usage)
+
             if agent_type == 'load':
                 try:
                     scores['load_mse'] = self.load.evaluate(**self.config['load'], evaluation=self.output['load'])
@@ -2503,7 +2461,6 @@ class Evaluation_Agent:
         xai_scores['activity_shap_auc_true'] = sklearn.metrics.roc_auc_score(y_true[:len(y_hat_shap)], y_hat_shap)
 
         # AUC of predicted probabilities - xai prediction
-        # to do: check if correct because kind of bad?
         xai_scores['activity_lime_auc_pred'] = sklearn.metrics.roc_auc_score(self.y_hat_test_bin[:len(y_hat_lime)], self.y_hat_lime_bin)
         xai_scores['activity_shap_auc_pred'] = sklearn.metrics.roc_auc_score(self.y_hat_test_bin[:len(y_hat_shap)], self.y_hat_shap_bin)
 
@@ -2563,7 +2520,7 @@ class Evaluation_Agent:
         xai_scores['usage_lime_auc_pred'] = sklearn.metrics.roc_auc_score(self.y_hat_test_bin[:len(y_hat_lime)], self.y_hat_lime_bin)
         xai_scores['usage_shap_auc_pred'] = sklearn.metrics.roc_auc_score(self.y_hat_test_bin[:len(y_hat_shap)], self.y_hat_shap_bin)
 
-        # MSEE
+        # MAE
 
         MAE_SHAP = []
         zip_object = zip(self.y_hat_test[:len(y_hat_shap)], self.y_hat_shap)
@@ -2937,7 +2894,6 @@ class Evaluation_Agent:
     # -------------------------------------------------------------------------------------------
     def evaluate(self, activity_threshold, usage_threshold):
         name = f"activity: {activity_threshold}; usage: {usage_threshold}"
-        #self._get_recommendations(activity_threshold, usage_threshold)
         self.pipeline('recommendation', activity_threshold=activity_threshold, usage_threshold=usage_threshold, dates='all')
         self.results[name] = self._evaluate()
 
@@ -3093,8 +3049,7 @@ class Explainability_Agent:
             self.explainer_activity = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
 
         elif self.model_type == "random forest":
-            #X_train_summary = shap.sample(self.X_train_activity, 100)
-            #self.explainer_activity = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
+
             self.explainer_activity = shap.TreeExplainer(self.model_activity, self.X_train_activity)
 
         elif self.model_type == "xgboost":
@@ -3107,9 +3062,9 @@ class Explainability_Agent:
             self.X_test_activity.iloc[self.best_hour, :])
 
         feature_names_activity = list(self.X_train_activity.columns.values)
-        # %%
+
         vals_activity = self.shap_values[1]
-        # %%
+
         feature_importance_activity = pd.DataFrame(list(zip(feature_names_activity, vals_activity)),
                                                    columns=['col_name', 'feature_importance_vals'])
         feature_importance_activity.sort_values(by=['feature_importance_vals'], ascending=False, inplace=True)
@@ -3129,8 +3084,7 @@ class Explainability_Agent:
             self.explainer_usage = shap.KernelExplainer(self.model_usage.predict_proba, X_train_summary)
 
         elif self.model_type == "random forest":
-            #X_train_summary = shap.sample(self.X_train_usage, 100)
-            #self.explainer_usage = shap.KernelExplainer(self.model_usage.predict_proba, X_train_summary)
+
             self.explainer_usage = shap.TreeExplainer(self.model_usage, self.X_train_usage)
 
         elif self.model_type == "xgboost":
@@ -3144,7 +3098,6 @@ class Explainability_Agent:
 
         feature_names_usage = list(self.X_train_usage.columns.values)
 
-        # %%
         vals = self.shap_values_usage[1]
 
         feature_importance_usage = pd.DataFrame(list(zip(feature_names_usage, vals)),
@@ -3157,8 +3110,6 @@ class Explainability_Agent:
         self.feature_importance_activity = feature_importance_activity
         self.diagnostics = diagnostics
 
-        # Sentence structure:
-        # You have one recommendation for the following device: Dishwasher. Please use it on 21.08.2014 at 00:00.
         sentence = 'We based the recommendation on your past activity and usage of the device. '
 
         #activity_lags:
