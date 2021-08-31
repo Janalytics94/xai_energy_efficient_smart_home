@@ -2495,8 +2495,8 @@ class Evaluation_Agent:
         xai_scores['activity_shap_auc_true'] = {}
         xai_scores['activity_lime_auc_pred'] = {}
         xai_scores['activity_shap_auc_pred'] = {}
-        xai_scores['activity_lime_MSEE'] = {}
-        xai_scores['activity_shap_MSEE'] = {}
+        xai_scores['activity_lime_MAE'] = {}
+        xai_scores['activity_shap_MAE'] = {}
 
         # AUC of true - xai prediction
         xai_scores['activity_lime_auc_true'] = sklearn.metrics.roc_auc_score(y_true[:len(y_hat_lime)], y_hat_lime)
@@ -2507,9 +2507,19 @@ class Evaluation_Agent:
         xai_scores['activity_lime_auc_pred'] = sklearn.metrics.roc_auc_score(self.y_hat_test_bin[:len(y_hat_lime)], self.y_hat_lime_bin)
         xai_scores['activity_shap_auc_pred'] = sklearn.metrics.roc_auc_score(self.y_hat_test_bin[:len(y_hat_shap)], self.y_hat_shap_bin)
 
-        # MSEE
-        xai_scores['activity_lime_MSEE'] = np.mean(y_hat_lime - y_hat_test[:len(y_hat_lime)]) ** 2
-        xai_scores['activity_shap_MSEE'] = np.mean(y_hat_shap - y_hat_test[:len(y_hat_shap)]) ** 2
+        # MAE
+        MAE_SHAP = []
+        zip_object = zip(self.y_hat_test[:len(y_hat_shap)],self.y_hat_shap)
+        for list1_i, list2_i in zip_object:
+            MAE_SHAP.append(abs(list1_i - list2_i))
+
+        MAE_LIME = []
+        zip_object = zip(self.y_hat_test[:len(y_hat_lime)], self.y_hat_lime)
+        for list1_i, list2_i in zip_object:
+            MAE_LIME.append(abs(list1_i - list2_i))
+
+        xai_scores['activity_lime_MAE'] = np.mean(MAE_LIME)
+        xai_scores['activity_shap_MAE'] = np.mean(MAE_SHAP)
 
         self.xai_scores = xai_scores
         return xai_scores
@@ -2542,21 +2552,32 @@ class Evaluation_Agent:
         xai_scores['usage_shap_auc_true'] = {}
         xai_scores['usage_lime_auc_pred'] = {}
         xai_scores['usage_shap_auc_pred'] = {}
-        xai_scores['usage_lime_MSEE'] = {}
-        xai_scores['usage_shap_MSEE'] = {}
+        xai_scores['usage_lime_MAE'] = {}
+        xai_scores['usage_shap_MAE'] = {}
 
         # AUC of true - xai prediction
         xai_scores['usage_lime_auc_true'] = sklearn.metrics.roc_auc_score(y_true[:len(y_hat_lime)], y_hat_lime)
         xai_scores['usage_shap_auc_true'] = sklearn.metrics.roc_auc_score(y_true[:len(y_hat_shap)], y_hat_shap)
 
         # AUC of predicted probabilities - xai prediction
-        # to do: check if correct because kind of bad?
         xai_scores['usage_lime_auc_pred'] = sklearn.metrics.roc_auc_score(self.y_hat_test_bin[:len(y_hat_lime)], self.y_hat_lime_bin)
         xai_scores['usage_shap_auc_pred'] = sklearn.metrics.roc_auc_score(self.y_hat_test_bin[:len(y_hat_shap)], self.y_hat_shap_bin)
 
         # MSEE
-        xai_scores['usage_lime_MSEE'] = np.mean(y_hat_lime - y_hat_test[:len(y_hat_lime)]) ** 2
-        xai_scores['usage_shap_MSEE'] = np.mean(y_hat_shap - y_hat_test[:len(y_hat_shap)]) ** 2
+
+        MAE_SHAP = []
+        zip_object = zip(self.y_hat_test[:len(y_hat_shap)], self.y_hat_shap)
+        for list1_i, list2_i in zip_object:
+            MAE_SHAP.append(abs(list1_i - list2_i))
+
+        MAE_LIME = []
+        zip_object = zip(self.y_hat_test[:len(y_hat_lime)], self.y_hat_lime)
+        for list1_i, list2_i in zip_object:
+            MAE_LIME.append(abs(list1_i - list2_i))
+
+        xai_scores['usage_lime_MAE'] = np.mean(MAE_LIME)
+        xai_scores['usage_shap_MAE'] = np.mean(MAE_SHAP)
+
 
         self.xai_scores = xai_scores
         return xai_scores
@@ -3072,8 +3093,9 @@ class Explainability_Agent:
             self.explainer_activity = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
 
         elif self.model_type == "random forest":
-            X_train_summary = shap.sample(self.X_train_activity, 100)
-            self.explainer_activity = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
+            #X_train_summary = shap.sample(self.X_train_activity, 100)
+            #self.explainer_activity = shap.KernelExplainer(self.model_activity.predict_proba, X_train_summary)
+            self.explainer_activity = shap.TreeExplainer(self.model_activity, self.X_train_activity)
 
         elif self.model_type == "xgboost":
             self.explainer_activity = shap.TreeExplainer(self.model_activity, self.X_train_activity, model_output='predict_proba')
@@ -3107,8 +3129,9 @@ class Explainability_Agent:
             self.explainer_usage = shap.KernelExplainer(self.model_usage.predict_proba, X_train_summary)
 
         elif self.model_type == "random forest":
-            X_train_summary = shap.sample(self.X_train_usage, 100)
-            self.explainer_usage = shap.KernelExplainer(self.model_usage.predict_proba, X_train_summary)
+            #X_train_summary = shap.sample(self.X_train_usage, 100)
+            #self.explainer_usage = shap.KernelExplainer(self.model_usage.predict_proba, X_train_summary)
+            self.explainer_usage = shap.TreeExplainer(self.model_usage, self.X_train_usage)
 
         elif self.model_type == "xgboost":
             self.explainer_usage = shap.TreeExplainer(self.model_usage, self.X_train_usage, model_output='predict_proba')
